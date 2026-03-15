@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node 20+](https://img.shields.io/badge/node-≥20-brightgreen)](https://nodejs.org)
 
-MCP server for [Runframe](https://runframe.io) incident management. Manage incidents from your IDE or agent without touching the web UI.
+**[Runframe](https://runframe.io)** is Slack-native incident management & on-call scheduling for engineering teams. This MCP server lets you manage the full incident lifecycle from your IDE or AI agent.
 
 16 tools covering incidents, on-call, services, postmortems, and teams. Requires Node.js 20+.
 
