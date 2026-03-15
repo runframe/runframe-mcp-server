@@ -175,7 +175,6 @@ The Runframe API enforces rate limits server-side. If you hit a limit, tools ret
 ## Limitations
 
 - Read-only for schedules — you can query on-call and escalation policies but not modify them via MCP
-- No webhook ingestion — this server calls the Runframe API, it does not receive inbound events
 - Requires a [Runframe](https://runframe.io) account and API key
 
 ## Contributing
