@@ -1,5 +1,6 @@
 # runframe-mcp-server
 
+[![CI](https://github.com/RunFrame/runframe-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/RunFrame/runframe-mcp-server/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@runframe/mcp-server)](https://npmjs.com/package/@runframe/mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node 20+](https://img.shields.io/badge/node-≥20-brightgreen)](https://nodejs.org)
@@ -7,6 +8,28 @@
 MCP server for [Runframe](https://runframe.io) incident management. Manage incidents from your IDE or agent without touching the web UI.
 
 16 tools covering incidents, on-call, services, postmortems, and teams. Requires Node.js 20+.
+
+## How It Works
+
+```
+Your IDE / Agent
+    ↓ (stdio or HTTP)
+MCP Server (this package)
+    ↓ (HTTPS, scoped API key)
+Runframe API
+```
+
+The server is stateless. It translates MCP tool calls into Runframe API requests, scoped by your API key permissions. No data is stored locally.
+
+## Examples
+
+Ask your agent:
+
+- *"Acknowledge incident INC-42"* → calls `runframe_acknowledge_incident`
+- *"Who is on call right now?"* → calls `runframe_get_current_oncall`
+- *"Create a postmortem for the database outage"* → calls `runframe_create_postmortem`
+- *"Page the backend team lead about the API latency spike"* → calls `runframe_page_someone`
+- *"List all open SEV1 incidents"* → calls `runframe_list_incidents` with severity filter
 
 ## Install
 
