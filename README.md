@@ -172,4 +172,4 @@ Issues and PRs welcome at [github.com/runframe/runframe-mcp-server](https://gith
 
 ## License
 
-MIT — [Runframe](https://runframe.io)
+MIT — [Runframe](https://runframe.io) · [npm](https://npmjs.com/package/@runframe/mcp-server)
