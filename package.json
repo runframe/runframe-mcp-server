@@ -28,10 +28,10 @@
   "homepage": "https://runframe.io",
   "repository": {
     "type": "git",
-    "url": "https://github.com/RunFrame/runframe-mcp-server.git"
+    "url": "https://github.com/runframe/runframe-mcp-server.git"
   },
   "bugs": {
-    "url": "https://github.com/RunFrame/runframe-mcp-server/issues"
+    "url": "https://github.com/runframe/runframe-mcp-server/issues"
   },
   "scripts": {
     "build": "tsc",

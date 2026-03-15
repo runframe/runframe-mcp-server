@@ -1,6 +1,6 @@
 # runframe-mcp-server
 
-[![CI](https://github.com/RunFrame/runframe-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/RunFrame/runframe-mcp-server/actions/workflows/ci.yml)
+[![CI](https://github.com/runframe/runframe-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/runframe/runframe-mcp-server/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@runframe/mcp-server)](https://npmjs.com/package/@runframe/mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node 20+](https://img.shields.io/badge/node-≥20-brightgreen)](https://nodejs.org)
@@ -168,7 +168,7 @@ The Runframe API enforces rate limits server-side. If you hit a limit, tools ret
 
 ## Contributing
 
-Issues and PRs welcome at [github.com/RunFrame/runframe-mcp-server](https://github.com/RunFrame/runframe-mcp-server).
+Issues and PRs welcome at [github.com/runframe/runframe-mcp-server](https://github.com/runframe/runframe-mcp-server).
 
 ## License
 

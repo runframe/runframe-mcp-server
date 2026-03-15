@@ -72,7 +72,7 @@ export async function runSetup(apiUrl: string): Promise<void> {
       console.error('  Replace YOUR_API_KEY with your key from https://runframe.io/settings');
     }
     console.error('');
-    console.error('  Docs: https://github.com/RunFrame/runframe-mcp-server');
+    console.error('  Docs: https://github.com/runframe/runframe-mcp-server');
     console.error('');
   } finally {
     rl.close();

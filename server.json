@@ -3,7 +3,7 @@
   "name": "io.github.runframe/runframe-mcp-server",
   "description": "MCP server for Runframe incident management. 16 tools covering incidents, on-call, services, postmortems, and teams.",
   "repository": {
-    "url": "https://github.com/RunFrame/runframe-mcp-server",
+    "url": "https://github.com/runframe/runframe-mcp-server",
     "source": "github"
   },
   "version": "0.1.3",
