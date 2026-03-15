@@ -9,6 +9,12 @@ MCP server for [Runframe](https://runframe.io) incident management. Manage incid
 
 16 tools covering incidents, on-call, services, postmortems, and teams. Requires Node.js 20+.
 
+## Why Use This
+
+- **Stay in your editor** — acknowledge incidents, page responders, and write postmortems without switching to a browser
+- **Let agents handle the routine** — AI agents can triage, escalate, and update incidents autonomously using scoped API keys
+- **Zero infrastructure** — runs via `npx`, no server to deploy for local use
+
 ## How It Works
 
 ```
@@ -165,6 +171,12 @@ The Runframe API enforces rate limits server-side. If you hit a limit, tools ret
 1. Set `MCP_ACCESS_TOKEN=new_token,old_token`
 2. Update clients to `new_token`
 3. Drop the old one: `MCP_ACCESS_TOKEN=new_token`
+
+## Limitations
+
+- Read-only for schedules — you can query on-call and escalation policies but not modify them via MCP
+- No webhook ingestion — this server calls the Runframe API, it does not receive inbound events
+- Requires a [Runframe](https://runframe.io) account and API key
 
 ## Contributing
 
