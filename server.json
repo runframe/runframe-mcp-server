@@ -1,0 +1,36 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.runframe/runframe-mcp-server",
+  "description": "MCP server for Runframe incident management. 16 tools covering incidents, on-call, services, postmortems, and teams.",
+  "repository": {
+    "url": "https://github.com/RunFrame/runframe-mcp-server",
+    "source": "github"
+  },
+  "version": "0.1.3",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@runframe/mcp-server",
+      "version": "0.1.3",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "RUNFRAME_API_KEY",
+          "description": "API key from https://runframe.io/settings (starts with rf_)",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "RUNFRAME_API_URL",
+          "description": "API base URL (default: https://runframe.io)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}

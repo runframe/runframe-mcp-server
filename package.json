@@ -1,0 +1,57 @@
+{
+  "name": "@runframe/mcp-server",
+  "version": "0.1.3",
+  "description": "MCP server for Runframe incident management — any agent, any IDE, one system of record",
+  "license": "MIT",
+  "author": "Runframe (https://runframe.io)",
+  "type": "module",
+  "bin": {
+    "runframe-mcp-server": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "!dist/__tests__"
+  ],
+  "mcpName": "io.github.runframe/runframe-mcp-server",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "incident-management",
+    "oncall",
+    "runframe",
+    "devops",
+    "sre",
+    "model-context-protocol"
+  ],
+  "homepage": "https://runframe.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RunFrame/runframe-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RunFrame/runframe-mcp-server/issues"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "pretest": "tsc",
+    "test": "node --test dist/__tests__/server.test.js dist/__tests__/tools.test.js",
+    "test:http": "node --test --test-force-exit dist/__tests__/http-security.test.js",
+    "test:all": "npm test && npm run test:http",
+    "prepublishOnly": "npm run build && npm run test:all"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.2.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

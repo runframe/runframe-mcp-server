@@ -1,0 +1,492 @@
+//
+// Tool execution tests using a mock client that captures HTTP calls.
+// Verifies every tool builds the correct URL, method, and request body.
+// No network calls.
+//
+import { describe, it, beforeEach } from 'node:test';
+import assert from 'node:assert';
+import { createServer } from '../server.js';
+import { RunframeClient } from '../client.js';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+
+// ── Mock client that records calls ───────────────────────────────────────
+
+interface CapturedCall {
+  method: string;
+  path: string;
+  body?: Record<string, unknown>;
+}
+
+class MockRunframeClient extends RunframeClient {
+  calls: CapturedCall[] = [];
+  mockResponse: unknown = {};
+
+  constructor() {
+    super({ apiKey: 'rf_test_key', apiUrl: 'https://mock.runframe.io' });
+  }
+
+  override async request<T>(method: string, path: string, body?: Record<string, unknown>): Promise<T> {
+    this.calls.push({ method, path, body });
+    return this.mockResponse as T;
+  }
+
+  reset(response: unknown = {}) {
+    this.calls = [];
+    this.mockResponse = response;
+  }
+
+  lastCall(): CapturedCall {
+    return this.calls[this.calls.length - 1];
+  }
+}
+
+// ── Test helper ──────────────────────────────────────────────────────────
+
+async function setupServer(mockClient: MockRunframeClient) {
+  const server = createServer(mockClient as unknown as RunframeClient);
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  const client = new Client({ name: 'test', version: '1.0.0' });
+  await client.connect(clientTransport);
+  return { mcpClient: client, server };
+}
+
+async function callTool(mcpClient: Client, name: string, args: Record<string, unknown> = {}) {
+  return mcpClient.callTool({ name, arguments: args });
+}
+
+// ── Incident tools ───────────────────────────────────────────────────────
+
+describe('incident tools', () => {
+  let mock: MockRunframeClient;
+  let mcpClient: Client;
+
+  beforeEach(async () => {
+    mock = new MockRunframeClient();
+    mock.reset({ items: [], total: 0, has_more: false, next_offset: null });
+    const setup = await setupServer(mock);
+    mcpClient = setup.mcpClient;
+  });
+
+  describe('runframe_list_incidents', () => {
+    it('builds correct URL with no filters', async () => {
+      await callTool(mcpClient, 'runframe_list_incidents', {});
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'GET');
+      assert.ok(call.path.startsWith('/api/v1/incidents?'));
+    });
+
+    it('includes status filters as repeated params', async () => {
+      await callTool(mcpClient, 'runframe_list_incidents', {
+        status: ['resolved', 'closed'],
+      });
+      const call = mock.lastCall();
+      assert.ok(call.path.includes('status=resolved'));
+      assert.ok(call.path.includes('status=closed'));
+    });
+
+    it('includes severity filters', async () => {
+      await callTool(mcpClient, 'runframe_list_incidents', {
+        severity: ['SEV0', 'SEV1'],
+      });
+      const call = mock.lastCall();
+      assert.ok(call.path.includes('severity=SEV0'));
+      assert.ok(call.path.includes('severity=SEV1'));
+    });
+
+    it('includes team_id filter', async () => {
+      const teamId = '67555d9b-1087-4265-bfe6-28c214871862';
+      await callTool(mcpClient, 'runframe_list_incidents', { team_id: teamId });
+      const call = mock.lastCall();
+      assert.ok(call.path.includes(`team_id=${teamId}`));
+    });
+
+    it('includes pagination params', async () => {
+      await callTool(mcpClient, 'runframe_list_incidents', { limit: 50, offset: 10 });
+      const call = mock.lastCall();
+      assert.ok(call.path.includes('limit=50'));
+      assert.ok(call.path.includes('offset=10'));
+    });
+
+    it('handles offset=0 correctly (not dropped)', async () => {
+      await callTool(mcpClient, 'runframe_list_incidents', { limit: 20, offset: 0 });
+      const call = mock.lastCall();
+      assert.ok(call.path.includes('offset=0'), `offset=0 should be included but got: ${call.path}`);
+    });
+  });
+
+  describe('runframe_get_incident', () => {
+    it('uses incident number in URL', async () => {
+      mock.reset({ id: '123', incident_number: 'INC-2026-001' });
+      await callTool(mcpClient, 'runframe_get_incident', { id: 'INC-2026-001' });
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'GET');
+      assert.strictEqual(call.path, '/api/v1/incidents/INC-2026-001');
+    });
+
+    it('encodes special characters in id', async () => {
+      mock.reset({});
+      await callTool(mcpClient, 'runframe_get_incident', { id: 'test/id' });
+      const call = mock.lastCall();
+      assert.ok(call.path.includes('test%2Fid'));
+    });
+  });
+
+  describe('runframe_create_incident', () => {
+    it('POSTs to correct endpoint with full body', async () => {
+      mock.reset({ id: 'new-id', incident_number: 'INC-2026-033' });
+      const teamId = '67555d9b-1087-4265-bfe6-28c214871862';
+      const serviceId = 'd804e776-b29f-474e-a377-fc5e6b31c2de';
+      await callTool(mcpClient, 'runframe_create_incident', {
+        title: 'Redis Cache Storm',
+        description: 'Cache eviction on prod-03',
+        severity: 'SEV1',
+        team_id: teamId,
+        service_ids: [serviceId],
+      });
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'POST');
+      assert.strictEqual(call.path, '/api/v1/incidents');
+      assert.strictEqual(call.body?.title, 'Redis Cache Storm');
+      assert.strictEqual(call.body?.description, 'Cache eviction on prod-03');
+      assert.strictEqual(call.body?.severity, 'SEV1');
+      assert.strictEqual(call.body?.team_id, teamId);
+      assert.deepStrictEqual(call.body?.service_ids, [serviceId]);
+    });
+
+    it('works with title only (minimum required)', async () => {
+      mock.reset({ id: 'new-id' });
+      await callTool(mcpClient, 'runframe_create_incident', { title: 'Minimal incident' });
+      const call = mock.lastCall();
+      assert.strictEqual(call.body?.title, 'Minimal incident');
+    });
+  });
+
+  describe('runframe_update_incident', () => {
+    it('PATCHes to correct endpoint, excludes id from body', async () => {
+      mock.reset({ id: '123' });
+      await callTool(mcpClient, 'runframe_update_incident', {
+        id: 'INC-2026-001',
+        title: 'Updated title',
+        severity: 'SEV0',
+      });
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'PATCH');
+      assert.strictEqual(call.path, '/api/v1/incidents/INC-2026-001');
+      assert.strictEqual(call.body?.title, 'Updated title');
+      assert.strictEqual(call.body?.severity, 'SEV0');
+      assert.strictEqual(call.body?.id, undefined, 'id should not be in body');
+    });
+  });
+
+  describe('runframe_change_incident_status', () => {
+    it('POSTs status and comment, excludes id from body', async () => {
+      mock.reset({ id: '123', status: 'Investigating' });
+      await callTool(mcpClient, 'runframe_change_incident_status', {
+        id: 'INC-2026-001',
+        status: 'investigating',
+        comment: 'Looking into it',
+      });
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'POST');
+      assert.strictEqual(call.path, '/api/v1/incidents/INC-2026-001/status');
+      assert.strictEqual(call.body?.status, 'investigating');
+      assert.strictEqual(call.body?.comment, 'Looking into it');
+      assert.strictEqual(call.body?.id, undefined);
+    });
+  });
+
+  describe('runframe_acknowledge_incident', () => {
+    it('POSTs to acknowledge endpoint with empty body', async () => {
+      mock.reset({ acknowledged: true });
+      await callTool(mcpClient, 'runframe_acknowledge_incident', { id: 'INC-2026-001' });
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'POST');
+      assert.strictEqual(call.path, '/api/v1/incidents/INC-2026-001/acknowledge');
+      assert.deepStrictEqual(call.body, {});
+    });
+  });
+
+  describe('runframe_add_incident_event', () => {
+    it('POSTs message to events endpoint, excludes id from body', async () => {
+      mock.reset({ event_id: 'evt-1' });
+      await callTool(mcpClient, 'runframe_add_incident_event', {
+        id: 'INC-2026-001',
+        message: 'Root cause identified: memory leak in worker pool',
+      });
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'POST');
+      assert.strictEqual(call.path, '/api/v1/incidents/INC-2026-001/events');
+      assert.strictEqual(call.body?.message, 'Root cause identified: memory leak in worker pool');
+      assert.strictEqual(call.body?.id, undefined);
+    });
+  });
+
+  describe('runframe_escalate_incident', () => {
+    it('POSTs to escalate endpoint with empty body', async () => {
+      mock.reset({ escalated: true });
+      await callTool(mcpClient, 'runframe_escalate_incident', { id: 'INC-2026-001' });
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'POST');
+      assert.strictEqual(call.path, '/api/v1/incidents/INC-2026-001/escalate');
+      assert.deepStrictEqual(call.body, {});
+    });
+  });
+
+  describe('runframe_page_someone', () => {
+    it('POSTs to page endpoint with user_id, channel, message', async () => {
+      mock.reset({ sent: true });
+      const userId = 'a45f6b87-f222-472f-9f66-9c825bade81e';
+      await callTool(mcpClient, 'runframe_page_someone', {
+        incident_id: 'INC-2026-001',
+        user_id: userId,
+        channel: 'email',
+        message: 'Need eyes on this ASAP',
+      });
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'POST');
+      assert.strictEqual(call.path, '/api/v1/incidents/INC-2026-001/page');
+      assert.strictEqual(call.body?.user_id, userId);
+      assert.strictEqual(call.body?.channel, 'email');
+      assert.strictEqual(call.body?.message, 'Need eyes on this ASAP');
+    });
+
+    it('defaults channel to slack', async () => {
+      mock.reset({ sent: true });
+      const userId = 'a45f6b87-f222-472f-9f66-9c825bade81e';
+      await callTool(mcpClient, 'runframe_page_someone', {
+        incident_id: 'INC-2026-001',
+        user_id: userId,
+      });
+      const call = mock.lastCall();
+      assert.strictEqual(call.body?.channel, 'slack');
+    });
+  });
+});
+
+// ── On-call tools ────────────────────────────────────────────────────────
+
+describe('oncall tools', () => {
+  let mock: MockRunframeClient;
+  let mcpClient: Client;
+
+  beforeEach(async () => {
+    mock = new MockRunframeClient();
+    mock.reset({ on_call: { services: [] } });
+    const setup = await setupServer(mock);
+    mcpClient = setup.mcpClient;
+  });
+
+  describe('runframe_get_current_oncall', () => {
+    it('calls correct endpoint with no team filter', async () => {
+      await callTool(mcpClient, 'runframe_get_current_oncall', {});
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'GET');
+      assert.ok(call.path.startsWith('/api/v1/on-call/current'));
+    });
+
+    it('includes team_id when provided', async () => {
+      const teamId = '67555d9b-1087-4265-bfe6-28c214871862';
+      await callTool(mcpClient, 'runframe_get_current_oncall', { team_id: teamId });
+      const call = mock.lastCall();
+      assert.ok(call.path.includes(`team_id=${teamId}`));
+    });
+  });
+});
+
+// ── Service tools ────────────────────────────────────────────────────────
+
+describe('service tools', () => {
+  let mock: MockRunframeClient;
+  let mcpClient: Client;
+
+  beforeEach(async () => {
+    mock = new MockRunframeClient();
+    mock.reset({ items: [], total: 0 });
+    const setup = await setupServer(mock);
+    mcpClient = setup.mcpClient;
+  });
+
+  describe('runframe_list_services', () => {
+    it('builds correct URL with search param', async () => {
+      await callTool(mcpClient, 'runframe_list_services', { search: 'payment' });
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'GET');
+      assert.ok(call.path.includes('search=payment'));
+    });
+
+    it('handles offset=0 correctly', async () => {
+      await callTool(mcpClient, 'runframe_list_services', { limit: 10, offset: 0 });
+      const call = mock.lastCall();
+      assert.ok(call.path.includes('offset=0'));
+    });
+  });
+
+  describe('runframe_get_service', () => {
+    it('GETs service by UUID', async () => {
+      mock.reset({ id: 'svc-1', name: 'Payment API' });
+      const svcId = 'd804e776-b29f-474e-a377-fc5e6b31c2de';
+      await callTool(mcpClient, 'runframe_get_service', { id: svcId });
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'GET');
+      assert.strictEqual(call.path, `/api/v1/services/${svcId}`);
+    });
+  });
+});
+
+// ── Postmortem tools ─────────────────────────────────────────────────────
+
+describe('postmortem tools', () => {
+  let mock: MockRunframeClient;
+  let mcpClient: Client;
+
+  beforeEach(async () => {
+    mock = new MockRunframeClient();
+    mock.reset({});
+    const setup = await setupServer(mock);
+    mcpClient = setup.mcpClient;
+  });
+
+  describe('runframe_get_postmortem', () => {
+    it('GETs postmortem with incident_id query param', async () => {
+      await callTool(mcpClient, 'runframe_get_postmortem', { incident_id: 'INC-2026-012' });
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'GET');
+      assert.strictEqual(call.path, '/api/v1/postmortems?incident_id=INC-2026-012');
+    });
+  });
+
+  describe('runframe_create_postmortem', () => {
+    it('POSTs full postmortem with all fields', async () => {
+      mock.reset({ id: 'pm-1' });
+      await callTool(mcpClient, 'runframe_create_postmortem', {
+        incident_id: 'INC-2026-012',
+        summary: 'Payment outage for 20 minutes',
+        root_cause: 'Connection pool exhausted',
+        resolution: 'Restarted connection pool, deployed fix',
+        impact: {
+          duration: '20 minutes',
+          usersAffected: '500 users',
+          servicesAffected: ['Checkout API'],
+          revenueImpact: '$2000',
+        },
+        timeline: [
+          { timestamp: '2026-03-14T15:00:00Z', description: 'Alert fired' },
+          { timestamp: '2026-03-14T15:20:00Z', description: 'Resolved' },
+        ],
+        action_items: [
+          { text: 'Add connection pool monitoring', status: 'pending' },
+        ],
+        contributing_factors: 'No alerting on pool size',
+        five_whys: 'Why? Because pool was exhausted.',
+        executive_summary: 'Brief outage, fast recovery.',
+      });
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'POST');
+      assert.strictEqual(call.path, '/api/v1/postmortems');
+      assert.strictEqual(call.body?.incident_id, 'INC-2026-012');
+      assert.strictEqual(call.body?.summary, 'Payment outage for 20 minutes');
+      assert.strictEqual(call.body?.root_cause, 'Connection pool exhausted');
+      assert.ok(Array.isArray(call.body?.timeline));
+      assert.ok(Array.isArray(call.body?.action_items));
+    });
+
+    it('works with incident_id only (minimum)', async () => {
+      mock.reset({ id: 'pm-2' });
+      await callTool(mcpClient, 'runframe_create_postmortem', { incident_id: 'INC-2026-012' });
+      const call = mock.lastCall();
+      assert.strictEqual(call.body?.incident_id, 'INC-2026-012');
+    });
+  });
+});
+
+// ── Team tools ───────────────────────────────────────────────────────────
+
+describe('team tools', () => {
+  let mock: MockRunframeClient;
+  let mcpClient: Client;
+
+  beforeEach(async () => {
+    mock = new MockRunframeClient();
+    mock.reset({ items: [] });
+    const setup = await setupServer(mock);
+    mcpClient = setup.mcpClient;
+  });
+
+  describe('runframe_list_teams', () => {
+    it('GETs teams with pagination', async () => {
+      await callTool(mcpClient, 'runframe_list_teams', { limit: 50, offset: 10 });
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'GET');
+      assert.ok(call.path.includes('limit=50'));
+      assert.ok(call.path.includes('offset=10'));
+    });
+
+    it('handles offset=0', async () => {
+      await callTool(mcpClient, 'runframe_list_teams', { offset: 0 });
+      const call = mock.lastCall();
+      assert.ok(call.path.includes('offset=0'));
+    });
+  });
+
+  describe('runframe_get_escalation_policy', () => {
+    it('GETs escalation policy with team_id', async () => {
+      const teamId = '67555d9b-1087-4265-bfe6-28c214871862';
+      mock.reset({ policy: { levels: [] } });
+      await callTool(mcpClient, 'runframe_get_escalation_policy', { team_id: teamId });
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'GET');
+      assert.strictEqual(call.path, `/api/v1/escalation-policies?team_id=${teamId}`);
+    });
+  });
+});
+
+// ── Error handling across tools ──────────────────────────────────────────
+
+describe('tool error handling', () => {
+  it('returns isError when API call fails', async () => {
+    const mock = new MockRunframeClient();
+    // Override request to throw
+    mock.request = async () => { throw new Error('Network failure'); };
+    const server = createServer(mock as unknown as RunframeClient);
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    const mcpClient = new Client({ name: 'test', version: '1.0.0' });
+    await mcpClient.connect(clientTransport);
+
+    const result = await callTool(mcpClient, 'runframe_list_incidents', {});
+    assert.strictEqual(result.isError, true);
+    const text = (result.content as Array<{ type: string; text: string }>)[0].text;
+    assert.ok(text.includes('Network failure'));
+
+    await mcpClient.close();
+    await server.close();
+  });
+});
+
+// ── Response format ──────────────────────────────────────────────────────
+
+describe('response format', () => {
+  it('returns JSON-stringified data in text content', async () => {
+    const mock = new MockRunframeClient();
+    const mockData = { id: '123', title: 'Test Incident', status: 'New' };
+    mock.reset(mockData);
+    const server = createServer(mock as unknown as RunframeClient);
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    const mcpClient = new Client({ name: 'test', version: '1.0.0' });
+    await mcpClient.connect(clientTransport);
+
+    const result = await callTool(mcpClient, 'runframe_get_incident', { id: 'INC-2026-001' });
+    assert.strictEqual(result.isError, undefined);
+    const content = result.content as Array<{ type: string; text: string }>;
+    assert.strictEqual(content[0].type, 'text');
+    const parsed = JSON.parse(content[0].text);
+    assert.strictEqual(parsed.id, '123');
+    assert.strictEqual(parsed.title, 'Test Incident');
+
+    await mcpClient.close();
+    await server.close();
+  });
+});
