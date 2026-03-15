@@ -136,13 +136,11 @@ describe('incident tools', () => {
   describe('runframe_create_incident', () => {
     it('POSTs to correct endpoint with full body', async () => {
       mock.reset({ id: 'new-id', incident_number: 'INC-2026-033' });
-      const teamId = '67555d9b-1087-4265-bfe6-28c214871862';
       const serviceId = 'd804e776-b29f-474e-a377-fc5e6b31c2de';
       await callTool(mcpClient, 'runframe_create_incident', {
         title: 'Redis Cache Storm',
         description: 'Cache eviction on prod-03',
         severity: 'SEV1',
-        team_id: teamId,
         service_ids: [serviceId],
       });
       const call = mock.lastCall();
@@ -151,7 +149,6 @@ describe('incident tools', () => {
       assert.strictEqual(call.body?.title, 'Redis Cache Storm');
       assert.strictEqual(call.body?.description, 'Cache eviction on prod-03');
       assert.strictEqual(call.body?.severity, 'SEV1');
-      assert.strictEqual(call.body?.team_id, teamId);
       assert.deepStrictEqual(call.body?.service_ids, [serviceId]);
     });
 

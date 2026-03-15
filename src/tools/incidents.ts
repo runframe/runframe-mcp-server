@@ -58,7 +58,6 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
       title: z.string().max(200).describe('Incident title (required, max 200 chars)'),
       description: z.string().optional().describe('Detailed description'),
       severity: z.string().optional().describe('SEV0-SEV4, defaults to org setting'),
-      team_id: z.string().uuid().optional().describe('Owning team UUID'),
       service_ids: z.array(z.string().uuid()).optional().describe('Affected service UUIDs'),
     } as any,
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
