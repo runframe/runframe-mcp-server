@@ -94,7 +94,7 @@ RUNFRAME_API_KEY=rf_... \
 Responsibility is split across three boundaries:
 
 - **Runframe API** handles authorization and scopes via `RUNFRAME_API_KEY`.
-- **This MCP server** handles process isolation (stdio) and bearer-token validation (HTTP). It also enforces method filtering, Host/Origin checks on localhost, Content-Length validation (1 MB declared limit), 8 KB header limit, and 15s upstream timeout.
+- **This MCP server** handles process isolation (stdio) and bearer-token validation (HTTP). It also enforces method filtering, Host/Origin checks on localhost, declared Content-Length validation (1 MB limit), 8 KB header limit, and 15s upstream timeout.
 - **Your reverse proxy** handles TLS, rate limiting, and streamed-body enforcement if you expose HTTP mode to a network.
 
 The server stores nothing. It is a pass-through to the Runframe API.
@@ -109,7 +109,7 @@ The server stores nothing. It is a pass-through to the Runframe API.
 | `runframe_get_incident` | `read:incidents` | Get incident by ID or number |
 | `runframe_create_incident` | `write:incidents` | Create an incident |
 | `runframe_update_incident` | `write:incidents` | Update title, description, severity, or assignment |
-| `runframe_change_incident_status` | `write:incidents` | Move to a new status (new, investigating, fixing, resolved, closed) |
+| `runframe_change_incident_status` | `write:incidents` | Move to a new status (new, investigating, fixing, monitoring, resolved, closed) |
 | `runframe_acknowledge_incident` | `write:incidents` | Acknowledge (auto-assigns, tracks SLA) |
 | `runframe_add_incident_event` | `write:incidents` | Add a timeline entry |
 | `runframe_escalate_incident` | `write:incidents` | Escalate to the next policy level |
@@ -140,7 +140,7 @@ The server stores nothing. It is a pass-through to the Runframe API.
 | Tool | Scopes | Description |
 |------|--------|-------------|
 | `runframe_list_teams` | `read:teams` | List teams |
-| `runframe_get_escalation_policy` | `read:oncall` | Get a team's escalation policy |
+| `runframe_get_escalation_policy` | `read:oncall` | Get escalation policy for a severity level |
 
 ## Docker
 
