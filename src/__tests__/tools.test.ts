@@ -428,13 +428,12 @@ describe('team tools', () => {
   });
 
   describe('runframe_get_escalation_policy', () => {
-    it('GETs escalation policy with team_id', async () => {
-      const teamId = '67555d9b-1087-4265-bfe6-28c214871862';
+    it('GETs escalation policy with severity', async () => {
       mock.reset({ policy: { levels: [] } });
-      await callTool(mcpClient, 'runframe_get_escalation_policy', { team_id: teamId });
+      await callTool(mcpClient, 'runframe_get_escalation_policy', { severity: 'SEV1' });
       const call = mock.lastCall();
       assert.strictEqual(call.method, 'GET');
-      assert.strictEqual(call.path, `/api/v1/escalation-policies?team_id=${teamId}`);
+      assert.strictEqual(call.path, '/api/v1/escalation-policies?severity=SEV1');
     });
   });
 });

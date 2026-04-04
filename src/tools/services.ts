@@ -3,8 +3,6 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RunframeClient } from '../client.js';
 import { toolError } from '../server.js';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 export function registerServiceTools(server: McpServer, client: RunframeClient) {
   server.registerTool('runframe_list_services', {
     description: 'List all services in your organization.',
@@ -12,9 +10,9 @@ export function registerServiceTools(server: McpServer, client: RunframeClient) 
       search: z.string().optional().describe('Search by name'),
       limit: z.number().min(1).max(100).default(20),
       offset: z.number().min(0).default(0),
-    } as any,
+    },
     annotations: { readOnlyHint: true, openWorldHint: true },
-  }, async (params: any) => {
+  }, async (params) => {
     try {
       const query = new URLSearchParams();
       if (params.limit != null) query.set('limit', String(params.limit));
@@ -29,9 +27,9 @@ export function registerServiceTools(server: McpServer, client: RunframeClient) 
     description: 'Get details of a specific service.',
     inputSchema: {
       id: z.string().describe('Service UUID'),
-    } as any,
+    },
     annotations: { readOnlyHint: true, openWorldHint: true },
-  }, async (params: any) => {
+  }, async (params) => {
     try {
       const data = await client.get(`/api/v1/services/${encodeURIComponent(params.id)}`);
       return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };

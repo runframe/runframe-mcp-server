@@ -121,10 +121,19 @@ describe('createServer', () => {
     assert.ok(server);
   });
 
-  it('server has expected name and version', () => {
+  it('server has expected name and version', async () => {
     const server = createServer(client);
-    // McpServer stores these on the internal _serverInfo
-    assert.ok(server);
+    const { InMemoryTransport } = await import('@modelcontextprotocol/sdk/inMemory.js');
+    const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    const mcpClient = new Client({ name: 'test', version: '1.0.0' });
+    await mcpClient.connect(clientTransport);
+    const info = mcpClient.getServerVersion();
+    assert.strictEqual(info?.name, 'runframe');
+    assert.strictEqual(info?.version, VERSION);
+    await mcpClient.close();
+    await server.close();
   });
 
   it('can be called multiple times (factory pattern)', () => {

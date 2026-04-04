@@ -6,7 +6,7 @@ import { timingSafeEqual } from 'crypto';
 const ALLOWED_METHODS = new Set(['GET', 'POST', 'DELETE']);
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
 const MAX_REQUEST_BODY_BYTES = 1_048_576; // 1 MB
-const MAX_HEADER_SIZE = 8_192; // 8 KB (Node.js default)
+const MAX_HEADER_SIZE = 8_192; // 8 KB (stricter than Node.js 16 KB default)
 
 function parseTokens(tokenEnv: string): string[] {
   return tokenEnv.split(',').map(t => t.trim()).filter(Boolean);

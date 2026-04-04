@@ -1,15 +1,8 @@
-export const VERSION = '0.1.4';
+export const VERSION = '0.1.5';
 
 export interface RunframeConfig {
   apiKey: string;
   apiUrl: string;
-}
-
-export interface PaginatedResponse<T> {
-  items: T[];
-  total: number;
-  has_more: boolean;
-  next_offset: number | null;
 }
 
 export interface ApiErrorResponse {

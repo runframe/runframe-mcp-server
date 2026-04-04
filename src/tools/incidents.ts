@@ -1,15 +1,10 @@
 //
-// 9 incident-management tools registered on the MCP server (resolve removed; change_incident_status added).
-// Schemas are cast to `any` in the inputSchema config to prevent TS2589
-// (excessive type-instantiation depth) from the SDK's dual Zod v3/v4 compat layer.
-// Runtime validation still works — the SDK validates inputs against these schemas at call time.
+// 9 incident-management tools registered on the MCP server.
 //
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RunframeClient } from '../client.js';
 import { toolError } from '../server.js';
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export function registerIncidentTools(server: McpServer, client: RunframeClient) {
 
@@ -17,20 +12,20 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
   server.registerTool('runframe_list_incidents', {
     description: 'List incidents filtered by status, severity, or team. Returns paginated results.',
     inputSchema: {
-      status: z.array(z.string()).optional().describe('Filter by status name. Default statuses: new, investigating, fixing, resolved, closed (may vary by organization)'),
+      status: z.array(z.string()).optional().describe('Filter by status name. Default statuses: new, investigating, fixing, monitoring, resolved, closed (may vary by organization)'),
       severity: z.array(z.string()).optional().describe('Filter by severity: SEV0-SEV4'),
       team_id: z.string().uuid().optional().describe('Filter by team UUID'),
       limit: z.number().min(1).max(100).default(20).describe('Results per page (max 100)'),
       offset: z.number().min(0).default(0).describe('Pagination offset'),
-    } as any,
+    },
     annotations: { readOnlyHint: true, openWorldHint: true },
-  }, async (params: any) => {
+  }, async (params) => {
     try {
       const query = new URLSearchParams();
       if (params.limit != null) query.set('limit', String(params.limit));
       if (params.offset != null) query.set('offset', String(params.offset));
-      params.status?.forEach((s: string) => query.append('status', s));
-      params.severity?.forEach((s: string) => query.append('severity', s));
+      params.status?.forEach((s) => query.append('status', s));
+      params.severity?.forEach((s) => query.append('severity', s));
       if (params.team_id) query.set('team_id', params.team_id);
       const data = await client.get(`/api/v1/incidents?${query}`);
       return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -42,9 +37,9 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
     description: 'Get full incident details including timeline, participants, and affected services.',
     inputSchema: {
       id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
-    } as any,
+    },
     annotations: { readOnlyHint: true, openWorldHint: true },
-  }, async (params: any) => {
+  }, async (params) => {
     try {
       const data = await client.get(`/api/v1/incidents/${encodeURIComponent(params.id)}`);
       return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -59,9 +54,9 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
       description: z.string().optional().describe('Detailed description'),
       severity: z.string().optional().describe('SEV0-SEV4, defaults to org setting'),
       service_ids: z.array(z.string().uuid()).optional().describe('Affected service UUIDs'),
-    } as any,
+    },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-  }, async (params: any) => {
+  }, async (params) => {
     try {
       const data = await client.post('/api/v1/incidents', params);
       return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -77,9 +72,9 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
       description: z.string().optional(),
       severity: z.string().optional(),
       assigned_to: z.string().uuid().optional(),
-    } as any,
+    },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-  }, async (params: any) => {
+  }, async (params) => {
     try {
       const { id, ...body } = params;
       const data = await client.patch(`/api/v1/incidents/${encodeURIComponent(id)}`, body);
@@ -89,14 +84,14 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
 
   // ── change status ─────────────────────────────────────────────────────
   server.registerTool('runframe_change_incident_status', {
-    description: 'Transition an incident to a new status. Valid statuses: new, investigating, fixing, resolved, closed. Validates allowed transitions. For acknowledging (which also auto-assigns and tracks SLA), use runframe_acknowledge_incident instead.',
+    description: 'Transition an incident to a new status. Valid statuses: new, investigating, fixing, monitoring, resolved, closed. Validates allowed transitions. For acknowledging (which also auto-assigns and tracks SLA), use runframe_acknowledge_incident instead.',
     inputSchema: {
       id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
-      status: z.string().describe('Target status name: new, investigating, fixing, resolved, closed'),
+      status: z.string().describe('Target status name: new, investigating, fixing, monitoring, resolved, closed'),
       comment: z.string().max(500).optional().describe('Reason for the status change'),
-    } as any,
+    },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-  }, async (params: any) => {
+  }, async (params) => {
     try {
       const { id, ...body } = params;
       const data = await client.post(`/api/v1/incidents/${encodeURIComponent(id)}/status`, body);
@@ -109,9 +104,9 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
     description: 'Acknowledge an incident. This is a distinct action from status change: it auto-assigns the incident to you, stamps the acknowledgement time, and resolves the acknowledge SLA. Idempotent — safe to call multiple times.',
     inputSchema: {
       id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
-    } as any,
+    },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-  }, async (params: any) => {
+  }, async (params) => {
     try {
       const data = await client.post(`/api/v1/incidents/${encodeURIComponent(params.id)}/acknowledge`, {});
       return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -124,9 +119,9 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
     inputSchema: {
       id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
       message: z.string().describe('What happened'),
-    } as any,
+    },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-  }, async (params: any) => {
+  }, async (params) => {
     try {
       const { id, ...body } = params;
       const data = await client.post(`/api/v1/incidents/${encodeURIComponent(id)}/events`, body);
@@ -139,9 +134,9 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
     description: 'Escalate an incident to the next level in the escalation policy. Sends real notifications.',
     inputSchema: {
       id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
-    } as any,
+    },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
-  }, async (params: any) => {
+  }, async (params) => {
     try {
       const data = await client.post(`/api/v1/incidents/${encodeURIComponent(params.id)}/escalate`, {});
       return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -159,9 +154,9 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
       user_id: z.string().uuid().describe('UUID of person to page'),
       channel: z.enum(['slack', 'email']).default('slack').describe('Notification channel (default: slack)'),
       message: z.string().max(500).optional().describe('Custom message to include'),
-    } as any,
+    },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
-  }, async (params: any) => {
+  }, async (params) => {
     try {
       const data = await client.post(`/api/v1/incidents/${encodeURIComponent(params.incident_id)}/page`, {
         user_id: params.user_id,

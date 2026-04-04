@@ -3,8 +3,6 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RunframeClient } from '../client.js';
 import { toolError } from '../server.js';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 export function registerPostmortemTools(server: McpServer, client: RunframeClient) {
 
   // ── get ──────────────────────────────────────────────────────────────
@@ -12,9 +10,9 @@ export function registerPostmortemTools(server: McpServer, client: RunframeClien
     description: 'Get the postmortem for a resolved incident.',
     inputSchema: {
       incident_id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
-    } as any,
+    },
     annotations: { readOnlyHint: true, openWorldHint: true },
-  }, async (params: any) => {
+  }, async (params) => {
     try {
       const data = await client.get(`/api/v1/postmortems?incident_id=${encodeURIComponent(params.incident_id)}`);
       return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -29,6 +27,7 @@ export function registerPostmortemTools(server: McpServer, client: RunframeClien
       summary: z.string().optional().describe('What happened'),
       root_cause: z.string().optional().describe('Root cause analysis'),
       resolution: z.string().optional().describe('How it was fixed'),
+      // Nested objects use camelCase to match the Runframe API contract
       impact: z.object({
         duration: z.string().optional(),
         usersAffected: z.string().optional(),
@@ -56,25 +55,14 @@ export function registerPostmortemTools(server: McpServer, client: RunframeClien
       five_whys: z.string().optional(),
       executive_summary: z.string().optional(),
       prevented_recurrence: z.string().optional(),
-    } as any,
+    },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
-  }, async (params: any) => {
+  }, async (params) => {
     try {
-      const { incident_id, summary, root_cause, resolution, impact, timeline, action_items, contributing_factors, detection_path, monitoring_gaps, response_timeline, five_whys, executive_summary, prevented_recurrence } = params;
-      const body: Record<string, unknown> = { incident_id };
-      if (summary != null) body.summary = summary;
-      if (root_cause != null) body.root_cause = root_cause;
-      if (resolution != null) body.resolution = resolution;
-      if (impact != null) body.impact = impact;
-      if (timeline != null) body.timeline = timeline;
-      if (action_items != null) body.action_items = action_items;
-      if (contributing_factors != null) body.contributing_factors = contributing_factors;
-      if (detection_path != null) body.detection_path = detection_path;
-      if (monitoring_gaps != null) body.monitoring_gaps = monitoring_gaps;
-      if (response_timeline != null) body.response_timeline = response_timeline;
-      if (five_whys != null) body.five_whys = five_whys;
-      if (executive_summary != null) body.executive_summary = executive_summary;
-      if (prevented_recurrence != null) body.prevented_recurrence = prevented_recurrence;
+      // Strip undefined fields — the API ignores unknown keys but shouldn't receive them
+      const body = Object.fromEntries(
+        Object.entries(params).filter(([, v]) => v != null)
+      );
       const data = await client.post('/api/v1/postmortems', body);
       return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
     } catch (error) { return toolError(error, 'runframe_create_postmortem'); }
