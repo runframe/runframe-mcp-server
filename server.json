@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.runframe/runframe-mcp-server",
-  "description": "MCP server for Runframe incident management. 16 tools covering incidents, on-call, services, postmortems, and teams.",
+  "description": "MCP server for Runframe incident management covering incidents, on-call, postmortems, and more.",
   "repository": {
     "url": "https://github.com/runframe/runframe-mcp-server",
     "source": "github"
