@@ -359,8 +359,8 @@ describe('oncall tools', () => {
           on_call_engineers: [{
             shift_id: 'shift-1',
             id: 'user-2',
-            name: 'Niketa Shah',
-            email: 'niketa@runframe.io',
+            name: 'Alex Morgan',
+            email: 'alex@runframe.io',
             slack_user_id: 'U123456',
             role: 'primary',
             schedule_id: 'schedule-1',
@@ -371,7 +371,7 @@ describe('oncall tools', () => {
           has_coverage: true,
           primary_on_call: {
             id: 'user-2',
-            name: 'Niketa Shah',
+            name: 'Alex Morgan',
             role: 'primary',
           },
           schedules: ['schedule-1'],
@@ -397,8 +397,8 @@ describe('oncall tools', () => {
         onCallEngineers: [{
           shiftId: 'shift-1',
           id: 'user-2',
-          name: 'Niketa Shah',
-          email: 'niketa@runframe.io',
+          name: 'Alex Morgan',
+          email: 'alex@runframe.io',
           slackUserId: 'U123456',
           role: 'primary',
           scheduleId: 'schedule-1',
@@ -409,7 +409,7 @@ describe('oncall tools', () => {
         hasCoverage: true,
         primaryOnCall: {
           id: 'user-2',
-          name: 'Niketa Shah',
+          name: 'Alex Morgan',
           role: 'primary',
         },
         schedules: ['schedule-1'],
@@ -616,11 +616,11 @@ describe('user tools', () => {
 
   describe('runframe_find_user', () => {
     it('GETs users with search and pagination defaults', async () => {
-      await callTool(mcpClient, 'runframe_find_user', { search: 'niketa' });
+      await callTool(mcpClient, 'runframe_find_user', { search: 'alex' });
       const call = mock.lastCall();
       assert.strictEqual(call.method, 'GET');
       assert.ok(call.path.startsWith('/api/v1/users?'));
-      assert.ok(call.path.includes('search=niketa'));
+      assert.ok(call.path.includes('search=alex'));
       assert.ok(call.path.includes('is_active=true'));
       assert.ok(call.path.includes('limit=10'));
       assert.ok(call.path.includes('offset=0'));
@@ -639,7 +639,7 @@ describe('user tools', () => {
     });
 
     it('passes is_active when provided', async () => {
-      await callTool(mcpClient, 'runframe_find_user', { search: 'niketa', is_active: false, limit: 100 });
+      await callTool(mcpClient, 'runframe_find_user', { search: 'alex', is_active: false, limit: 100 });
       const call = mock.lastCall();
       assert.ok(call.path.includes('is_active=false'));
       assert.ok(call.path.includes('limit=100'));
