@@ -7,6 +7,7 @@ export function registerTeamTools(server: McpServer, client: RunframeClient) {
   server.registerTool('runframe_list_teams', {
     description: 'List all teams in your organization.',
     inputSchema: {
+      search: z.string().optional().describe('Search by team name'),
       limit: z.number().min(1).max(100).default(20),
       offset: z.number().min(0).default(0),
     },
@@ -16,6 +17,7 @@ export function registerTeamTools(server: McpServer, client: RunframeClient) {
       const query = new URLSearchParams();
       if (params.limit != null) query.set('limit', String(params.limit));
       if (params.offset != null) query.set('offset', String(params.offset));
+      if (params.search) query.set('search', params.search);
       const data = await client.get(`/api/v1/teams?${query}`);
       return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
     } catch (error) { return toolError(error, 'runframe_list_teams'); }

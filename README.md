@@ -7,7 +7,7 @@
 
 **[Runframe](https://runframe.io)** is Slack-native incident management & on-call scheduling for engineering teams. This MCP server lets you manage the full incident lifecycle from your IDE or AI agent.
 
-16 tools covering incidents, on-call, services, postmortems, and teams. Requires Node.js 20+.
+17 tools covering incidents, on-call, services, postmortems, teams, and people lookup. Requires Node.js 20+.
 
 ## Why Use This
 
@@ -31,11 +31,12 @@ The server is stateless. It translates MCP tool calls into Runframe API requests
 
 Ask your agent:
 
-- *"Acknowledge incident INC-42"* → calls `runframe_acknowledge_incident`
+- *"Acknowledge incident INC-2026-001"* → calls `runframe_acknowledge_incident`
 - *"Who is on call right now?"* → calls `runframe_get_current_oncall`
 - *"Create a postmortem for the database outage"* → calls `runframe_create_postmortem`
 - *"Page the backend team lead about the API latency spike"* → calls `runframe_page_someone`
 - *"List all open SEV1 incidents"* → calls `runframe_list_incidents` with severity filter
+- *"Find Niketa so I can check her open incidents"* → calls `runframe_find_user`
 
 ## Install
 
@@ -105,42 +106,59 @@ The server stores nothing. It is a pass-through to the Runframe API.
 
 | Tool | Scopes | Description |
 |------|--------|-------------|
-| `runframe_list_incidents` | `read:incidents` | List incidents with filters and pagination |
-| `runframe_get_incident` | `read:incidents` | Get incident by ID or number |
-| `runframe_create_incident` | `write:incidents` | Create an incident |
-| `runframe_update_incident` | `write:incidents` | Update title, description, severity, or assignment |
-| `runframe_change_incident_status` | `write:incidents` | Move to a new status (new, investigating, fixing, monitoring, resolved, closed) |
-| `runframe_acknowledge_incident` | `write:incidents` | Acknowledge (auto-assigns, tracks SLA) |
-| `runframe_add_incident_event` | `write:incidents` | Add a timeline entry |
-| `runframe_escalate_incident` | `write:incidents` | Escalate to the next policy level |
-| `runframe_page_someone` | `write:incidents` | Page a responder via Slack or email |
+| `runframe_list_incidents` | `incidents:read` | List incidents with filters and pagination |
+| `runframe_get_incident` | `incidents:read` | Get incident by ID or number |
+| `runframe_create_incident` | `incidents:write` | Create an incident |
+| `runframe_update_incident` | `incidents:write` | Update title, description, severity, or assignment |
+| `runframe_change_incident_status` | `incidents:write` | Move to a new status (new, investigating, fixing, monitoring, resolved, closed) |
+| `runframe_acknowledge_incident` | `incidents:write` | Acknowledge (auto-assigns, tracks SLA) |
+| `runframe_add_incident_event` | `incidents:write` | Add a timeline entry |
+| `runframe_escalate_incident` | `incidents:write` | Escalate to the next policy level |
+| `runframe_page_someone` | `incidents:write` | Page a responder via Slack or email |
 
 ### On-call (1)
 
 | Tool | Scopes | Description |
 |------|--------|-------------|
-| `runframe_get_current_oncall` | `read:oncall` | Who is on call right now |
+| `runframe_get_current_oncall` | `oncall:read` | Who is on call right now |
 
 ### Services (2)
 
 | Tool | Scopes | Description |
 |------|--------|-------------|
-| `runframe_list_services` | `read:services` | List services |
-| `runframe_get_service` | `read:services` | Get service details |
+| `runframe_list_services` | `services:read` | List services |
+| `runframe_get_service` | `services:read` | Get service details |
 
 ### Postmortems (2)
 
 | Tool | Scopes | Description |
 |------|--------|-------------|
-| `runframe_create_postmortem` | `write:postmortems` | Create a postmortem |
-| `runframe_get_postmortem` | `read:postmortems` | Get postmortem for an incident |
+| `runframe_create_postmortem` | `postmortems:write` | Create a postmortem |
+| `runframe_get_postmortem` | `postmortems:read` | Get postmortem for an incident |
 
 ### Teams (2)
 
 | Tool | Scopes | Description |
 |------|--------|-------------|
-| `runframe_list_teams` | `read:teams` | List teams |
-| `runframe_get_escalation_policy` | `read:oncall` | Get escalation policy for a severity level |
+| `runframe_list_teams` | `teams:read` | List teams |
+| `runframe_get_escalation_policy` | `oncall:read` | Get escalation policy for a severity level |
+
+### Users (1)
+
+| Tool | Scopes | Description |
+|------|--------|-------------|
+| `runframe_find_user` | `users:read` | Search active users by name or email |
+
+## Direct API alignment
+
+This MCP server follows the public Runframe direct API contract.
+
+- Incident create requires `service_ids` containing public service keys like `SER-00001`, not internal UUIDs.
+- Incident IDs in tools may be either UUIDs or incident numbers like `INC-2026-001`.
+- `runframe_create_incident` accepts an optional `idempotency_key`, which is forwarded as the `Idempotency-Key` header for retry-safe creates.
+- Use `runframe_list_services` to discover valid `service_key` values before creating incidents.
+- Use `runframe_find_user` to resolve a person name before filtering incidents by `assigned_to` or `resolved_by`.
+- Use `runframe_list_teams` with `search` to resolve a team name before filtering incidents by `team_id`.
 
 ## Docker
 

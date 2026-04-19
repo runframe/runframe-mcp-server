@@ -14,7 +14,13 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
     inputSchema: {
       status: z.array(z.string()).optional().describe('Filter by status name. Default statuses: new, investigating, fixing, monitoring, resolved, closed (may vary by organization)'),
       severity: z.array(z.string()).optional().describe('Filter by severity: SEV0-SEV4'),
+      assigned_to: z.string().uuid().optional().describe('Filter by current assignee UUID'),
+      resolved_by: z.string().uuid().optional().describe('Filter by resolver UUID'),
       team_id: z.string().uuid().optional().describe('Filter by team UUID'),
+      created_after: z.string().datetime().optional().describe('Only incidents created at or after this ISO timestamp'),
+      created_before: z.string().datetime().optional().describe('Only incidents created at or before this ISO timestamp'),
+      resolved_after: z.string().datetime().optional().describe('Only incidents resolved at or after this ISO timestamp'),
+      resolved_before: z.string().datetime().optional().describe('Only incidents resolved at or before this ISO timestamp'),
       limit: z.number().min(1).max(100).default(20).describe('Results per page (max 100)'),
       offset: z.number().min(0).default(0).describe('Pagination offset'),
     },
@@ -26,7 +32,13 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
       if (params.offset != null) query.set('offset', String(params.offset));
       params.status?.forEach((s) => query.append('status', s));
       params.severity?.forEach((s) => query.append('severity', s));
+      if (params.assigned_to) query.set('assigned_to', params.assigned_to);
+      if (params.resolved_by) query.set('resolved_by', params.resolved_by);
       if (params.team_id) query.set('team_id', params.team_id);
+      if (params.created_after) query.set('created_after', params.created_after);
+      if (params.created_before) query.set('created_before', params.created_before);
+      if (params.resolved_after) query.set('resolved_after', params.resolved_after);
+      if (params.resolved_before) query.set('resolved_before', params.resolved_before);
       const data = await client.get(`/api/v1/incidents?${query}`);
       return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
     } catch (error) { return toolError(error, 'runframe_list_incidents'); }
@@ -53,12 +65,16 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
       title: z.string().max(200).describe('Incident title (required, max 200 chars)'),
       description: z.string().optional().describe('Detailed description'),
       severity: z.string().optional().describe('SEV0-SEV4, defaults to org setting'),
-      service_ids: z.array(z.string().uuid()).optional().describe('Affected service UUIDs'),
+      service_ids: z.array(z.string()).min(1).describe('Affected public service keys (for example SER-00001). Discover keys via runframe_list_services.'),
+      idempotency_key: z.string().optional().describe('Optional retry-safe idempotency key for create requests. Same key + same payload replays the original response.'),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   }, async (params) => {
     try {
-      const data = await client.post('/api/v1/incidents', params);
+      const { idempotency_key, ...body } = params;
+      const data = await client.post('/api/v1/incidents', body, {
+        headers: idempotency_key ? { 'Idempotency-Key': idempotency_key } : undefined,
+      });
       return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
     } catch (error) { return toolError(error, 'runframe_create_incident'); }
   });

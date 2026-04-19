@@ -41,6 +41,28 @@ describe('RunframeClient', () => {
     assert.strictEqual(typeof client.post, 'function');
     assert.strictEqual(typeof client.patch, 'function');
   });
+
+  it('supports per-request headers', async () => {
+    let seenHeaders: Headers | undefined;
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      seenHeaders = new Headers(init?.headers);
+      return new Response(JSON.stringify({ data: { ok: true } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as typeof fetch;
+
+    try {
+      const client = new RunframeClient({ apiKey: 'rf_test', apiUrl: 'https://example.com' });
+      await client.post('/api/v1/incidents', { title: 'Test', service_ids: ['SER-00001'] }, {
+        headers: { 'Idempotency-Key': 'incident-create-001' },
+      });
+      assert.strictEqual(seenHeaders?.get('Idempotency-Key'), 'incident-create-001');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
 
 // ── RunframeApiError ─────────────────────────────────────────────────────
@@ -148,7 +170,7 @@ describe('createServer', () => {
 // ── Tool count verification ──────────────────────────────────────────────
 
 describe('tool registration', () => {
-  it('registers exactly 16 tools', async () => {
+  it('registers exactly 17 tools', async () => {
     const client = new RunframeClient({ apiKey: 'rf_test', apiUrl: 'https://example.com' });
     const server = createServer(client);
 
@@ -164,7 +186,7 @@ describe('tool registration', () => {
     await mcpClient.connect(clientTransport);
 
     const { tools } = await mcpClient.listTools();
-    assert.strictEqual(tools.length, 16, `Expected 16 tools, got ${tools.length}: ${tools.map(t => t.name).join(', ')}`);
+    assert.strictEqual(tools.length, 17, `Expected 17 tools, got ${tools.length}: ${tools.map(t => t.name).join(', ')}`);
 
     await mcpClient.close();
     await server.close();
