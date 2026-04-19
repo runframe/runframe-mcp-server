@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node 20+](https://img.shields.io/badge/node-≥20-brightgreen)](https://nodejs.org)
 
-**[Runframe](https://runframe.io)** is Slack-native incident management & on-call scheduling for engineering teams. This MCP server lets you manage the full incident lifecycle from your IDE or AI agent.
+**[Runframe](https://runframe.io)** is the complete incident lifecycle platform for engineering teams, covering incident response, on-call, and status pages. This MCP server lets you manage those workflows from your IDE or AI agent.
 
 17 tools covering incidents, on-call, services, postmortems, teams, and people lookup. Requires Node.js 20+.
 
@@ -36,7 +36,7 @@ Ask your agent:
 - *"Create a postmortem for the database outage"* → calls `runframe_create_postmortem`
 - *"Page the backend team lead about the API latency spike"* → calls `runframe_page_someone`
 - *"List all open SEV1 incidents"* → calls `runframe_list_incidents` with severity filter
-- *"Find Niketa so I can check her open incidents"* → calls `runframe_find_user`
+- *"Find Alex so I can check their open incidents"* → calls `runframe_find_user`
 
 ## Install
 
@@ -147,7 +147,7 @@ The server stores nothing. It is a pass-through to the Runframe API.
 
 | Tool | Scopes | Description |
 |------|--------|-------------|
-| `runframe_find_user` | `users:read` | Search active users by name or email |
+| `runframe_find_user` | `users:read` | Search users by name or email, with optional inactive-user support for historical lookups |
 
 ## Direct API alignment
 
@@ -158,6 +158,7 @@ This MCP server follows the public Runframe direct API contract.
 - `runframe_create_incident` accepts an optional `idempotency_key`, which is forwarded as the `Idempotency-Key` header for retry-safe creates.
 - Use `runframe_list_services` to discover valid `service_key` values before creating incidents.
 - Use `runframe_find_user` to resolve a person name before filtering incidents by `assigned_to` or `resolved_by`.
+- Set `include_inactive=true` on `runframe_find_user` when you need to resolve former employees in historical incident queries.
 - Use `runframe_list_teams` with `search` to resolve a team name before filtering incidents by `team_id`.
 
 ## Docker

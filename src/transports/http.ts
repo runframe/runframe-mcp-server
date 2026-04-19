@@ -133,10 +133,20 @@ export async function startHttp(
     }
   );
 
-  return new Promise<Server>((resolve) => {
-    httpServer.listen(port, host, () => {
+  return new Promise<Server>((resolve, reject) => {
+    const onError = (error: Error) => {
+      httpServer.off('listening', onListening);
+      reject(error);
+    };
+
+    const onListening = () => {
+      httpServer.off('error', onError);
       console.error(`[runframe-mcp] HTTP server listening on ${host}:${port}`);
       resolve(httpServer);
-    });
+    };
+
+    httpServer.once('error', onError);
+    httpServer.once('listening', onListening);
+    httpServer.listen(port, host);
   });
 }

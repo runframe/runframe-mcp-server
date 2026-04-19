@@ -1,12 +1,12 @@
 {
   "name": "@runframe/mcp-server",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "MCP server for Runframe incident management — any agent, any IDE, one system of record",
   "license": "MIT",
   "author": "Runframe (https://runframe.io)",
   "type": "module",
   "bin": {
-    "runframe-mcp-server": "./dist/index.js"
+    "runframe-mcp-server": "dist/index.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -28,7 +28,7 @@
   "homepage": "https://runframe.io",
   "repository": {
     "type": "git",
-    "url": "https://github.com/runframe/runframe-mcp-server.git"
+    "url": "git+https://github.com/runframe/runframe-mcp-server.git"
   },
   "bugs": {
     "url": "https://github.com/runframe/runframe-mcp-server/issues"
