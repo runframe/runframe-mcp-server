@@ -156,9 +156,13 @@ This MCP server follows the public Runframe direct API contract.
 - Incident create requires `service_ids` containing public service keys like `SER-00001`, not internal UUIDs.
 - Incident IDs in tools may be either UUIDs or incident numbers like `INC-2026-001`.
 - `runframe_create_incident` accepts an optional `idempotency_key`, which is forwarded as the `Idempotency-Key` header for retry-safe creates.
+- `runframe_create_incident` defaults `severity` to `SEV2` when omitted, matching the V1 API.
+- Incident create now mirrors the V1 API limits: `title` must be 1-200 chars, `description` maxes at 10000 chars, and `service_ids` allows at most 50 items.
+- Incident creation depends on valid SLA configuration for the requested severity. If acknowledge or closure deadlines are missing, the API rejects the create.
 - Use `runframe_list_services` to discover valid `service_key` values before creating incidents.
 - Use `runframe_find_user` to resolve a person name before filtering incidents by `assigned_to` or `resolved_by`.
 - Set `include_inactive=true` on `runframe_find_user` when you need to resolve former employees in historical incident queries.
+- Set `is_active=true` or `is_active=false` on `runframe_find_user` when you need an explicit V1 active-state filter.
 - Use `runframe_list_teams` with `search` to resolve a team name before filtering incidents by `team_id`.
 
 ## Docker

@@ -5,7 +5,7 @@ import { toolError } from '../server.js';
 
 export function registerOncallTools(server: McpServer, client: RunframeClient) {
   server.registerTool('runframe_get_current_oncall', {
-    description: 'Get who is currently on call. Returns on-call engineers grouped by schedule, with their roles (primary, secondary, backup) and covered services.',
+    description: 'Get the current on-call payload from the V1 API. If provided, `team_id` scopes the response to services covered by that team.',
     inputSchema: {
       team_id: z.string().uuid().optional().describe('Filter by team. If omitted, returns on-call for all teams.'),
     },

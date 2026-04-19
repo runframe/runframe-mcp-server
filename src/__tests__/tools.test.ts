@@ -183,6 +183,19 @@ describe('incident tools', () => {
       assert.strictEqual(call.headers?.['Idempotency-Key'], 'incident-create-001');
       assert.strictEqual(call.body?.idempotency_key, undefined);
     });
+
+    it('rejects more than 50 service_ids before sending request', async () => {
+      mock.reset({ id: 'new-id' });
+      const result = await callTool(mcpClient, 'runframe_create_incident', {
+        title: 'Redis Cache Storm',
+        service_ids: Array.from({ length: 51 }, (_, i) => `SER-${String(i + 1).padStart(5, '0')}`),
+      });
+
+      assert.strictEqual(result.isError, true);
+      assert.strictEqual(mock.calls.length, 0);
+      const text = (result.content as Array<{ type: string; text: string }>)[0].text;
+      assert.ok(text.includes('50'), text);
+    });
   });
 
   describe('runframe_update_incident', () => {
@@ -199,6 +212,18 @@ describe('incident tools', () => {
       assert.strictEqual(call.body?.title, 'Updated title');
       assert.strictEqual(call.body?.severity, 'SEV0');
       assert.strictEqual(call.body?.id, undefined, 'id should not be in body');
+    });
+
+    it('rejects empty update payload before sending request', async () => {
+      mock.reset({ id: '123' });
+      const result = await callTool(mcpClient, 'runframe_update_incident', {
+        id: 'INC-2026-001',
+      });
+
+      assert.strictEqual(result.isError, true);
+      assert.strictEqual(mock.calls.length, 0);
+      const text = (result.content as Array<{ type: string; text: string }>)[0].text;
+      assert.ok(text.includes('At least one field must be provided for update'), text);
     });
   });
 
@@ -483,12 +508,12 @@ describe('user tools', () => {
   });
 
   describe('runframe_find_user', () => {
-    it('GETs active users with search and pagination defaults', async () => {
-      await callTool(mcpClient, 'runframe_find_user', { search: 'alex' });
+    it('GETs users with search and pagination defaults', async () => {
+      await callTool(mcpClient, 'runframe_find_user', { search: 'niketa' });
       const call = mock.lastCall();
       assert.strictEqual(call.method, 'GET');
       assert.ok(call.path.startsWith('/api/v1/users?'));
-      assert.ok(call.path.includes('search=alex'));
+      assert.ok(call.path.includes('search=niketa'));
       assert.ok(call.path.includes('is_active=true'));
       assert.ok(call.path.includes('limit=10'));
       assert.ok(call.path.includes('offset=0'));
@@ -498,10 +523,19 @@ describe('user tools', () => {
       await callTool(mcpClient, 'runframe_find_user', {
         search: 'alex',
         include_inactive: true,
+        limit: 100,
       });
       const call = mock.lastCall();
       assert.ok(call.path.includes('search=alex'));
       assert.ok(!call.path.includes('is_active=true'));
+      assert.ok(call.path.includes('limit=100'));
+    });
+
+    it('passes is_active when provided', async () => {
+      await callTool(mcpClient, 'runframe_find_user', { search: 'niketa', is_active: false, limit: 100 });
+      const call = mock.lastCall();
+      assert.ok(call.path.includes('is_active=false'));
+      assert.ok(call.path.includes('limit=100'));
     });
   });
 });
