@@ -1,6 +1,6 @@
 {
   "name": "@runframe/mcp-server",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "MCP server for Runframe incident management — any agent, any IDE, one system of record",
   "license": "MIT",
   "author": "Runframe (https://runframe.io)",
