@@ -1,4 +1,8 @@
-export const VERSION = '0.1.7';
+import { readFileSync } from 'node:fs';
+
+export const VERSION = JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf-8')
+).version as string;
 
 export interface RunframeConfig {
   apiKey: string;

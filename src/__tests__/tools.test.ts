@@ -484,14 +484,24 @@ describe('user tools', () => {
 
   describe('runframe_find_user', () => {
     it('GETs active users with search and pagination defaults', async () => {
-      await callTool(mcpClient, 'runframe_find_user', { search: 'niketa' });
+      await callTool(mcpClient, 'runframe_find_user', { search: 'alex' });
       const call = mock.lastCall();
       assert.strictEqual(call.method, 'GET');
       assert.ok(call.path.startsWith('/api/v1/users?'));
-      assert.ok(call.path.includes('search=niketa'));
+      assert.ok(call.path.includes('search=alex'));
       assert.ok(call.path.includes('is_active=true'));
       assert.ok(call.path.includes('limit=10'));
       assert.ok(call.path.includes('offset=0'));
+    });
+
+    it('can include inactive users for historical lookups', async () => {
+      await callTool(mcpClient, 'runframe_find_user', {
+        search: 'alex',
+        include_inactive: true,
+      });
+      const call = mock.lastCall();
+      assert.ok(call.path.includes('search=alex'));
+      assert.ok(!call.path.includes('is_active=true'));
     });
   });
 });

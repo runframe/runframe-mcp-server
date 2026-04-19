@@ -203,3 +203,20 @@ describe('HTTP multi-token rotation', async () => {
     assert.strictEqual(res.status, 401);
   });
 });
+
+describe('HTTP startup errors', () => {
+  it('rejects cleanly when the port is already in use', async () => {
+    const client = new RunframeClient({ apiKey: 'rf_test', apiUrl: 'https://example.com' });
+    const port = 10000 + Math.floor(Math.random() * 50000);
+    const first = await startHttp(() => createMcpServer(client), port, TEST_HOST, TEST_TOKEN);
+
+    try {
+      await assert.rejects(
+        () => startHttp(() => createMcpServer(client), port, TEST_HOST, TEST_TOKEN),
+        (error: NodeJS.ErrnoException) => error.code === 'EADDRINUSE'
+      );
+    } finally {
+      first.close();
+    }
+  });
+});
