@@ -40,7 +40,7 @@ Ask your agent:
 
 ## Install
 
-Get your API key from [Runframe Settings](https://runframe.io/settings), then add to your agent:
+Get your API key from settings inside [Runframe.io](https://runframe.io), then add to your agent:
 
 **Claude Code:**
 
@@ -160,6 +160,7 @@ This MCP server follows the public Runframe direct API contract.
 - Incident create now mirrors the V1 API limits: `title` must be 1-200 chars, `description` maxes at 10000 chars, and `service_ids` allows at most 50 items.
 - Incident creation depends on valid SLA configuration for the requested severity. If acknowledge or closure deadlines are missing, the API rejects the create.
 - Use `runframe_list_services` to discover valid `service_key` values before creating incidents.
+- Postmortem tools now follow the latest V1 contract: use `incident_number` and snake_case nested fields like `users_affected`, `owner_id`, and `time_to_acknowledge`.
 - Use `runframe_find_user` to resolve a person name before filtering incidents by `assigned_to` or `resolved_by`.
 - Set `include_inactive=true` on `runframe_find_user` when you need to resolve former employees in historical incident queries.
 - Set `is_active=true` or `is_active=false` on `runframe_find_user` when you need an explicit V1 active-state filter.

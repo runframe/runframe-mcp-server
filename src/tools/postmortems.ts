@@ -9,12 +9,12 @@ export function registerPostmortemTools(server: McpServer, client: RunframeClien
   server.registerTool('runframe_get_postmortem', {
     description: 'Get the postmortem for a resolved incident.',
     inputSchema: {
-      incident_id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
+      incident_number: z.string().min(1).describe('Incident number (e.g. INC-2026-001)'),
     },
     annotations: { readOnlyHint: true, openWorldHint: true },
   }, async (params) => {
     try {
-      const data = await client.get(`/api/v1/postmortems?incident_id=${encodeURIComponent(params.incident_id)}`);
+      const data = await client.get(`/api/v1/postmortems?incident_number=${encodeURIComponent(params.incident_number)}`);
       return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
     } catch (error) { return toolError(error, 'runframe_get_postmortem'); }
   });
@@ -23,16 +23,15 @@ export function registerPostmortemTools(server: McpServer, client: RunframeClien
   server.registerTool('runframe_create_postmortem', {
     description: 'Create a post-mortem for a resolved incident. Required fields depend on your org\'s configured level.',
     inputSchema: {
-      incident_id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
+      incident_number: z.string().min(1).describe('Incident number (e.g. INC-2026-001)'),
       summary: z.string().optional().describe('What happened'),
       root_cause: z.string().optional().describe('Root cause analysis'),
       resolution: z.string().optional().describe('How it was fixed'),
-      // Nested objects use camelCase to match the Runframe API contract
       impact: z.object({
         duration: z.string().optional(),
-        usersAffected: z.string().optional(),
-        servicesAffected: z.array(z.string()).optional(),
-        revenueImpact: z.string().optional(),
+        users_affected: z.string().optional(),
+        services_affected: z.array(z.string()).optional(),
+        revenue_impact: z.string().optional(),
       }).optional().describe('Impact details'),
       timeline: z.array(z.object({
         timestamp: z.string(),
@@ -40,17 +39,17 @@ export function registerPostmortemTools(server: McpServer, client: RunframeClien
       })).optional().describe('Timeline of events'),
       action_items: z.array(z.object({
         text: z.string(),
-        ownerId: z.string().optional(),
-        dueDate: z.string().optional(),
+        owner_id: z.string().optional(),
+        due_date: z.string().optional(),
         status: z.enum(['pending', 'in_progress', 'completed']).default('pending'),
       })).optional().describe('Follow-up action items'),
       contributing_factors: z.string().optional(),
       detection_path: z.string().optional(),
       monitoring_gaps: z.string().optional(),
       response_timeline: z.object({
-        timeToAcknowledge: z.string().optional(),
-        timeToIdentify: z.string().optional(),
-        timeToResolve: z.string().optional(),
+        time_to_acknowledge: z.string().optional(),
+        time_to_identify: z.string().optional(),
+        time_to_resolve: z.string().optional(),
       }).optional(),
       five_whys: z.string().optional(),
       executive_summary: z.string().optional(),

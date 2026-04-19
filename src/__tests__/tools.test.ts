@@ -340,14 +340,14 @@ describe('oncall tools', () => {
       assert.ok(call.path.includes(`team_id=${teamId}`));
     });
 
-    it('normalizes snake_case on-call responses to stable camelCase output', async () => {
+    it('returns the latest snake_case on-call payload unchanged', async () => {
       mock.reset({
         timestamp: '2026-04-19T12:30:00.000Z',
         summary: {
-          total_services: 3,
-          services_with_coverage: 2,
-          services_without_coverage: 1,
-          coverage_percentage: 67,
+          total_services: 1,
+          services_with_coverage: 1,
+          services_without_coverage: 0,
+          coverage_percentage: 100,
         },
         services: [{
           service_id: 'service-1',
@@ -356,85 +356,9 @@ describe('oncall tools', () => {
           team_id: 'team-1',
           team_name: 'Platform',
           team_description: null,
-          on_call_engineers: [{
-            shift_id: 'shift-1',
-            id: 'user-2',
-            name: 'Alex Morgan',
-            email: 'alex@runframe.io',
-            slack_user_id: 'U123456',
-            role: 'primary',
-            schedule_id: 'schedule-1',
-            schedule_name: 'Platform Primary',
-            shift_starts_at: '2026-04-19T09:00:00.000Z',
-            shift_ends_at: '2026-04-19T17:00:00.000Z',
-          }],
+          on_call_engineers: [],
           has_coverage: true,
-          primary_on_call: {
-            id: 'user-2',
-            name: 'Alex Morgan',
-            role: 'primary',
-          },
-          schedules: ['schedule-1'],
-        }],
-      });
-
-      const result = await callTool(mcpClient, 'runframe_get_current_oncall', {});
-      const text = (result.content as Array<{ type: string; text: string }>)[0].text;
-      const parsed = JSON.parse(text);
-      assert.deepStrictEqual(parsed.summary, {
-        totalServices: 3,
-        servicesWithCoverage: 2,
-        servicesWithoutCoverage: 1,
-        coveragePercentage: 67,
-      });
-      assert.deepStrictEqual(parsed.services[0], {
-        serviceId: 'service-1',
-        serviceName: 'Payments API',
-        serviceDescription: null,
-        teamId: 'team-1',
-        teamName: 'Platform',
-        teamDescription: null,
-        onCallEngineers: [{
-          shiftId: 'shift-1',
-          id: 'user-2',
-          name: 'Alex Morgan',
-          email: 'alex@runframe.io',
-          slackUserId: 'U123456',
-          role: 'primary',
-          scheduleId: 'schedule-1',
-          scheduleName: 'Platform Primary',
-          shiftStartsAt: '2026-04-19T09:00:00.000Z',
-          shiftEndsAt: '2026-04-19T17:00:00.000Z',
-        }],
-        hasCoverage: true,
-        primaryOnCall: {
-          id: 'user-2',
-          name: 'Alex Morgan',
-          role: 'primary',
-        },
-        schedules: ['schedule-1'],
-      });
-    });
-
-    it('preserves legacy camelCase on-call responses', async () => {
-      mock.reset({
-        timestamp: '2026-04-19T12:30:00.000Z',
-        summary: {
-          totalServices: 1,
-          servicesWithCoverage: 1,
-          servicesWithoutCoverage: 0,
-          coveragePercentage: 100,
-        },
-        services: [{
-          serviceId: 'service-1',
-          serviceName: 'Payments API',
-          serviceDescription: null,
-          teamId: 'team-1',
-          teamName: 'Platform',
-          teamDescription: null,
-          onCallEngineers: [],
-          hasCoverage: true,
-          primaryOnCall: null,
+          primary_on_call: null,
           schedules: [],
         }],
       });
@@ -442,9 +366,9 @@ describe('oncall tools', () => {
       const result = await callTool(mcpClient, 'runframe_get_current_oncall', {});
       const text = (result.content as Array<{ type: string; text: string }>)[0].text;
       const parsed = JSON.parse(text);
-      assert.strictEqual(parsed.summary.totalServices, 1);
-      assert.strictEqual(parsed.services[0].serviceId, 'service-1');
-      assert.strictEqual(parsed.services[0].hasCoverage, true);
+      assert.strictEqual(parsed.summary.total_services, 1);
+      assert.strictEqual(parsed.services[0].service_id, 'service-1');
+      assert.strictEqual(parsed.services[0].has_coverage, true);
     });
   });
 });
@@ -503,11 +427,11 @@ describe('postmortem tools', () => {
   });
 
   describe('runframe_get_postmortem', () => {
-    it('GETs postmortem with incident_id query param', async () => {
-      await callTool(mcpClient, 'runframe_get_postmortem', { incident_id: 'INC-2026-012' });
+    it('GETs postmortem with incident_number query param', async () => {
+      await callTool(mcpClient, 'runframe_get_postmortem', { incident_number: 'INC-2026-012' });
       const call = mock.lastCall();
       assert.strictEqual(call.method, 'GET');
-      assert.strictEqual(call.path, '/api/v1/postmortems?incident_id=INC-2026-012');
+      assert.strictEqual(call.path, '/api/v1/postmortems?incident_number=INC-2026-012');
     });
   });
 
@@ -515,42 +439,49 @@ describe('postmortem tools', () => {
     it('POSTs full postmortem with all fields', async () => {
       mock.reset({ id: 'pm-1' });
       await callTool(mcpClient, 'runframe_create_postmortem', {
-        incident_id: 'INC-2026-012',
+        incident_number: 'INC-2026-012',
         summary: 'Payment outage for 20 minutes',
         root_cause: 'Connection pool exhausted',
         resolution: 'Restarted connection pool, deployed fix',
         impact: {
           duration: '20 minutes',
-          usersAffected: '500 users',
-          servicesAffected: ['Checkout API'],
-          revenueImpact: '$2000',
+          users_affected: '500 users',
+          services_affected: ['Checkout API'],
+          revenue_impact: '$2000',
         },
         timeline: [
           { timestamp: '2026-03-14T15:00:00Z', description: 'Alert fired' },
           { timestamp: '2026-03-14T15:20:00Z', description: 'Resolved' },
         ],
         action_items: [
-          { text: 'Add connection pool monitoring', status: 'pending' },
+          { text: 'Add connection pool monitoring', owner_id: 'user-1', due_date: '2026-04-30', status: 'pending' },
         ],
         contributing_factors: 'No alerting on pool size',
+        detection_path: 'Synthetic monitor',
+        monitoring_gaps: 'Missing pool saturation alert',
+        response_timeline: {
+          time_to_acknowledge: '2m',
+          time_to_identify: '5m',
+          time_to_resolve: '20m',
+        },
         five_whys: 'Why? Because pool was exhausted.',
         executive_summary: 'Brief outage, fast recovery.',
       });
       const call = mock.lastCall();
       assert.strictEqual(call.method, 'POST');
       assert.strictEqual(call.path, '/api/v1/postmortems');
-      assert.strictEqual(call.body?.incident_id, 'INC-2026-012');
+      assert.strictEqual(call.body?.incident_number, 'INC-2026-012');
       assert.strictEqual(call.body?.summary, 'Payment outage for 20 minutes');
       assert.strictEqual(call.body?.root_cause, 'Connection pool exhausted');
       assert.ok(Array.isArray(call.body?.timeline));
       assert.ok(Array.isArray(call.body?.action_items));
     });
 
-    it('works with incident_id only (minimum)', async () => {
+    it('works with incident_number only (minimum)', async () => {
       mock.reset({ id: 'pm-2' });
-      await callTool(mcpClient, 'runframe_create_postmortem', { incident_id: 'INC-2026-012' });
+      await callTool(mcpClient, 'runframe_create_postmortem', { incident_number: 'INC-2026-012' });
       const call = mock.lastCall();
-      assert.strictEqual(call.body?.incident_id, 'INC-2026-012');
+      assert.strictEqual(call.body?.incident_number, 'INC-2026-012');
     });
   });
 });
