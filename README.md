@@ -4,6 +4,7 @@
 [![npm](https://img.shields.io/npm/v/@runframe/mcp-server)](https://npmjs.com/package/@runframe/mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node 20+](https://img.shields.io/badge/node-≥20-brightgreen)](https://nodejs.org)
+[![SafeSkill 96/100](https://img.shields.io/badge/SafeSkill-96%2F100_Verified%20Safe-brightgreen)](https://safeskill.dev/scan/runframe-runframe-mcp-server)
 
 **[Runframe](https://runframe.io)** is Slack-native incident management & on-call scheduling for engineering teams. This MCP server lets you manage the full incident lifecycle from your IDE or AI agent.
 
