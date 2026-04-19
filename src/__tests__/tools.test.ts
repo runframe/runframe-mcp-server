@@ -183,6 +183,19 @@ describe('incident tools', () => {
       assert.strictEqual(call.headers?.['Idempotency-Key'], 'incident-create-001');
       assert.strictEqual(call.body?.idempotency_key, undefined);
     });
+
+    it('rejects more than 50 service_ids before sending request', async () => {
+      mock.reset({ id: 'new-id' });
+      const result = await callTool(mcpClient, 'runframe_create_incident', {
+        title: 'Redis Cache Storm',
+        service_ids: Array.from({ length: 51 }, (_, i) => `SER-${String(i + 1).padStart(5, '0')}`),
+      });
+
+      assert.strictEqual(result.isError, true);
+      assert.strictEqual(mock.calls.length, 0);
+      const text = (result.content as Array<{ type: string; text: string }>)[0].text;
+      assert.ok(text.includes('50'), text);
+    });
   });
 
   describe('runframe_update_incident', () => {
@@ -199,6 +212,18 @@ describe('incident tools', () => {
       assert.strictEqual(call.body?.title, 'Updated title');
       assert.strictEqual(call.body?.severity, 'SEV0');
       assert.strictEqual(call.body?.id, undefined, 'id should not be in body');
+    });
+
+    it('rejects empty update payload before sending request', async () => {
+      mock.reset({ id: '123' });
+      const result = await callTool(mcpClient, 'runframe_update_incident', {
+        id: 'INC-2026-001',
+      });
+
+      assert.strictEqual(result.isError, true);
+      assert.strictEqual(mock.calls.length, 0);
+      const text = (result.content as Array<{ type: string; text: string }>)[0].text;
+      assert.ok(text.includes('At least one field must be provided for update'), text);
     });
   });
 
@@ -313,6 +338,113 @@ describe('oncall tools', () => {
       await callTool(mcpClient, 'runframe_get_current_oncall', { team_id: teamId });
       const call = mock.lastCall();
       assert.ok(call.path.includes(`team_id=${teamId}`));
+    });
+
+    it('normalizes snake_case on-call responses to stable camelCase output', async () => {
+      mock.reset({
+        timestamp: '2026-04-19T12:30:00.000Z',
+        summary: {
+          total_services: 3,
+          services_with_coverage: 2,
+          services_without_coverage: 1,
+          coverage_percentage: 67,
+        },
+        services: [{
+          service_id: 'service-1',
+          service_name: 'Payments API',
+          service_description: null,
+          team_id: 'team-1',
+          team_name: 'Platform',
+          team_description: null,
+          on_call_engineers: [{
+            shift_id: 'shift-1',
+            id: 'user-2',
+            name: 'Alex Morgan',
+            email: 'alex@runframe.io',
+            slack_user_id: 'U123456',
+            role: 'primary',
+            schedule_id: 'schedule-1',
+            schedule_name: 'Platform Primary',
+            shift_starts_at: '2026-04-19T09:00:00.000Z',
+            shift_ends_at: '2026-04-19T17:00:00.000Z',
+          }],
+          has_coverage: true,
+          primary_on_call: {
+            id: 'user-2',
+            name: 'Alex Morgan',
+            role: 'primary',
+          },
+          schedules: ['schedule-1'],
+        }],
+      });
+
+      const result = await callTool(mcpClient, 'runframe_get_current_oncall', {});
+      const text = (result.content as Array<{ type: string; text: string }>)[0].text;
+      const parsed = JSON.parse(text);
+      assert.deepStrictEqual(parsed.summary, {
+        totalServices: 3,
+        servicesWithCoverage: 2,
+        servicesWithoutCoverage: 1,
+        coveragePercentage: 67,
+      });
+      assert.deepStrictEqual(parsed.services[0], {
+        serviceId: 'service-1',
+        serviceName: 'Payments API',
+        serviceDescription: null,
+        teamId: 'team-1',
+        teamName: 'Platform',
+        teamDescription: null,
+        onCallEngineers: [{
+          shiftId: 'shift-1',
+          id: 'user-2',
+          name: 'Alex Morgan',
+          email: 'alex@runframe.io',
+          slackUserId: 'U123456',
+          role: 'primary',
+          scheduleId: 'schedule-1',
+          scheduleName: 'Platform Primary',
+          shiftStartsAt: '2026-04-19T09:00:00.000Z',
+          shiftEndsAt: '2026-04-19T17:00:00.000Z',
+        }],
+        hasCoverage: true,
+        primaryOnCall: {
+          id: 'user-2',
+          name: 'Alex Morgan',
+          role: 'primary',
+        },
+        schedules: ['schedule-1'],
+      });
+    });
+
+    it('preserves legacy camelCase on-call responses', async () => {
+      mock.reset({
+        timestamp: '2026-04-19T12:30:00.000Z',
+        summary: {
+          totalServices: 1,
+          servicesWithCoverage: 1,
+          servicesWithoutCoverage: 0,
+          coveragePercentage: 100,
+        },
+        services: [{
+          serviceId: 'service-1',
+          serviceName: 'Payments API',
+          serviceDescription: null,
+          teamId: 'team-1',
+          teamName: 'Platform',
+          teamDescription: null,
+          onCallEngineers: [],
+          hasCoverage: true,
+          primaryOnCall: null,
+          schedules: [],
+        }],
+      });
+
+      const result = await callTool(mcpClient, 'runframe_get_current_oncall', {});
+      const text = (result.content as Array<{ type: string; text: string }>)[0].text;
+      const parsed = JSON.parse(text);
+      assert.strictEqual(parsed.summary.totalServices, 1);
+      assert.strictEqual(parsed.services[0].serviceId, 'service-1');
+      assert.strictEqual(parsed.services[0].hasCoverage, true);
     });
   });
 });
@@ -483,7 +615,7 @@ describe('user tools', () => {
   });
 
   describe('runframe_find_user', () => {
-    it('GETs active users with search and pagination defaults', async () => {
+    it('GETs users with search and pagination defaults', async () => {
       await callTool(mcpClient, 'runframe_find_user', { search: 'alex' });
       const call = mock.lastCall();
       assert.strictEqual(call.method, 'GET');
@@ -498,10 +630,19 @@ describe('user tools', () => {
       await callTool(mcpClient, 'runframe_find_user', {
         search: 'alex',
         include_inactive: true,
+        limit: 100,
       });
       const call = mock.lastCall();
       assert.ok(call.path.includes('search=alex'));
       assert.ok(!call.path.includes('is_active=true'));
+      assert.ok(call.path.includes('limit=100'));
+    });
+
+    it('passes is_active when provided', async () => {
+      await callTool(mcpClient, 'runframe_find_user', { search: 'alex', is_active: false, limit: 100 });
+      const call = mock.lastCall();
+      assert.ok(call.path.includes('is_active=false'));
+      assert.ok(call.path.includes('limit=100'));
     });
   });
 });

@@ -6,6 +6,25 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RunframeClient } from '../client.js';
 import { toolError } from '../server.js';
 
+const SeveritySchema = z.enum(['SEV0', 'SEV1', 'SEV2', 'SEV3', 'SEV4']);
+
+const CreateIncidentBodySchema = z.object({
+  title: z.string().min(1).max(200),
+  description: z.string().max(10000).optional(),
+  severity: SeveritySchema.optional(),
+  service_ids: z.array(z.string().min(1)).min(1).max(50),
+}).strict();
+
+const UpdateIncidentBodySchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().max(10000).optional(),
+  severity: SeveritySchema.optional(),
+  assigned_to: z.string().uuid().optional(),
+}).refine(
+  (data) => Object.values(data).some((value) => value !== undefined),
+  { message: 'At least one field must be provided for update' }
+);
+
 export function registerIncidentTools(server: McpServer, client: RunframeClient) {
 
   // ── list ────────────────────────────────────────────────────────────
@@ -13,7 +32,7 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
     description: 'List incidents filtered by status, severity, or team. Returns paginated results.',
     inputSchema: {
       status: z.array(z.string()).optional().describe('Filter by status name. Default statuses: new, investigating, fixing, monitoring, resolved, closed (may vary by organization)'),
-      severity: z.array(z.string()).optional().describe('Filter by severity: SEV0-SEV4'),
+      severity: z.array(SeveritySchema).optional().describe('Filter by severity: SEV0-SEV4'),
       assigned_to: z.string().uuid().optional().describe('Filter by current assignee UUID'),
       resolved_by: z.string().uuid().optional().describe('Filter by resolver UUID'),
       team_id: z.string().uuid().optional().describe('Filter by team UUID'),
@@ -62,16 +81,17 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
   server.registerTool('runframe_create_incident', {
     description: 'Create a new incident from an alert or detection. Assignment happens automatically based on on-call schedules.',
     inputSchema: {
-      title: z.string().max(200).describe('Incident title (required, max 200 chars)'),
-      description: z.string().optional().describe('Detailed description'),
-      severity: z.string().optional().describe('SEV0-SEV4, defaults to org setting'),
-      service_ids: z.array(z.string()).min(1).describe('Affected public service keys (for example SER-00001). Discover keys via runframe_list_services.'),
+      title: z.string().min(1).max(200).describe('Incident title (required, 1-200 chars)'),
+      description: z.string().max(10000).optional().describe('Detailed description (max 10000 chars)'),
+      severity: SeveritySchema.optional().describe('SEV0-SEV4, defaults to SEV2'),
+      service_ids: z.array(z.string().min(1)).min(1).max(50).describe('Affected public service keys (for example SER-00001). Discover keys via runframe_list_services. Max 50 items.'),
       idempotency_key: z.string().optional().describe('Optional retry-safe idempotency key for create requests. Same key + same payload replays the original response.'),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   }, async (params) => {
     try {
-      const { idempotency_key, ...body } = params;
+      const { idempotency_key, ...rawBody } = params;
+      const body = CreateIncidentBodySchema.parse(rawBody);
       const data = await client.post('/api/v1/incidents', body, {
         headers: idempotency_key ? { 'Idempotency-Key': idempotency_key } : undefined,
       });
@@ -84,15 +104,16 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
     description: 'Update incident fields: title, description, severity, or assignment. For status changes use runframe_change_incident_status instead.',
     inputSchema: {
       id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
-      title: z.string().max(200).optional(),
-      description: z.string().optional(),
-      severity: z.string().optional(),
+      title: z.string().min(1).max(200).optional(),
+      description: z.string().max(10000).optional(),
+      severity: SeveritySchema.optional(),
       assigned_to: z.string().uuid().optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   }, async (params) => {
     try {
-      const { id, ...body } = params;
+      const { id, ...rawBody } = params;
+      const body = UpdateIncidentBodySchema.parse(rawBody);
       const data = await client.patch(`/api/v1/incidents/${encodeURIComponent(id)}`, body);
       return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
     } catch (error) { return toolError(error, 'runframe_update_incident'); }
