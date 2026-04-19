@@ -1,5 +1,5 @@
 import { VERSION } from './types.js';
-import type { RunframeConfig, ApiErrorResponse } from './types.js';
+import type { RunframeConfig, ApiErrorResponse, RequestOptions } from './types.js';
 
 const REQUEST_TIMEOUT_MS = 15_000;
 
@@ -15,13 +15,15 @@ export class RunframeClient {
   async request<T>(
     method: string,
     path: string,
-    body?: Record<string, unknown>
+    body?: Record<string, unknown>,
+    options?: RequestOptions
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const headers: Record<string, string> = {
       'Authorization': `Bearer ${this.apiKey}`,
       'Content-Type': 'application/json',
       'User-Agent': `runframe-mcp-server/${VERSION}`,
+      ...(options?.headers ?? {}),
     };
 
     const controller = new AbortController();
@@ -73,12 +75,12 @@ export class RunframeClient {
     return this.request<T>('GET', path);
   }
 
-  post<T>(path: string, body: Record<string, unknown>): Promise<T> {
-    return this.request<T>('POST', path, body);
+  post<T>(path: string, body: Record<string, unknown>, options?: RequestOptions): Promise<T> {
+    return this.request<T>('POST', path, body, options);
   }
 
-  patch<T>(path: string, body: Record<string, unknown>): Promise<T> {
-    return this.request<T>('PATCH', path, body);
+  patch<T>(path: string, body: Record<string, unknown>, options?: RequestOptions): Promise<T> {
+    return this.request<T>('PATCH', path, body, options);
   }
 }
 

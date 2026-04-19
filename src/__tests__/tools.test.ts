@@ -16,6 +16,7 @@ interface CapturedCall {
   method: string;
   path: string;
   body?: Record<string, unknown>;
+  headers?: Record<string, string>;
 }
 
 class MockRunframeClient extends RunframeClient {
@@ -26,8 +27,13 @@ class MockRunframeClient extends RunframeClient {
     super({ apiKey: 'rf_test_key', apiUrl: 'https://mock.runframe.io' });
   }
 
-  override async request<T>(method: string, path: string, body?: Record<string, unknown>): Promise<T> {
-    this.calls.push({ method, path, body });
+  override async request<T>(
+    method: string,
+    path: string,
+    body?: Record<string, unknown>,
+    options?: { headers?: Record<string, string> }
+  ): Promise<T> {
+    this.calls.push({ method, path, body, headers: options?.headers });
     return this.mockResponse as T;
   }
 
@@ -109,6 +115,20 @@ describe('incident tools', () => {
       assert.ok(call.path.includes('offset=10'));
     });
 
+    it('includes assignee, resolver, and date range filters', async () => {
+      await callTool(mcpClient, 'runframe_list_incidents', {
+        assigned_to: '11111111-1111-4111-8111-111111111111',
+        resolved_by: '22222222-2222-4222-8222-222222222222',
+        created_after: '2026-04-01T00:00:00.000Z',
+        resolved_before: '2026-04-30T23:59:59.999Z',
+      });
+      const call = mock.lastCall();
+      assert.ok(call.path.includes('assigned_to=11111111-1111-4111-8111-111111111111'));
+      assert.ok(call.path.includes('resolved_by=22222222-2222-4222-8222-222222222222'));
+      assert.ok(call.path.includes('created_after=2026-04-01T00%3A00%3A00.000Z'));
+      assert.ok(call.path.includes('resolved_before=2026-04-30T23%3A59%3A59.999Z'));
+    });
+
     it('handles offset=0 correctly (not dropped)', async () => {
       await callTool(mcpClient, 'runframe_list_incidents', { limit: 20, offset: 0 });
       const call = mock.lastCall();
@@ -136,12 +156,12 @@ describe('incident tools', () => {
   describe('runframe_create_incident', () => {
     it('POSTs to correct endpoint with full body', async () => {
       mock.reset({ id: 'new-id', incident_number: 'INC-2026-033' });
-      const serviceId = 'd804e776-b29f-474e-a377-fc5e6b31c2de';
+      const serviceKey = 'SER-00001';
       await callTool(mcpClient, 'runframe_create_incident', {
         title: 'Redis Cache Storm',
         description: 'Cache eviction on prod-03',
         severity: 'SEV1',
-        service_ids: [serviceId],
+        service_ids: [serviceKey],
       });
       const call = mock.lastCall();
       assert.strictEqual(call.method, 'POST');
@@ -149,14 +169,19 @@ describe('incident tools', () => {
       assert.strictEqual(call.body?.title, 'Redis Cache Storm');
       assert.strictEqual(call.body?.description, 'Cache eviction on prod-03');
       assert.strictEqual(call.body?.severity, 'SEV1');
-      assert.deepStrictEqual(call.body?.service_ids, [serviceId]);
+      assert.deepStrictEqual(call.body?.service_ids, [serviceKey]);
     });
 
-    it('works with title only (minimum required)', async () => {
+    it('sends Idempotency-Key header when provided', async () => {
       mock.reset({ id: 'new-id' });
-      await callTool(mcpClient, 'runframe_create_incident', { title: 'Minimal incident' });
+      await callTool(mcpClient, 'runframe_create_incident', {
+        title: 'Redis Cache Storm',
+        service_ids: ['SER-00001'],
+        idempotency_key: 'incident-create-001',
+      });
       const call = mock.lastCall();
-      assert.strictEqual(call.body?.title, 'Minimal incident');
+      assert.strictEqual(call.headers?.['Idempotency-Key'], 'incident-create-001');
+      assert.strictEqual(call.body?.idempotency_key, undefined);
     });
   });
 
@@ -412,6 +437,12 @@ describe('team tools', () => {
   });
 
   describe('runframe_list_teams', () => {
+    it('includes search when provided', async () => {
+      await callTool(mcpClient, 'runframe_list_teams', { search: 'platform' });
+      const call = mock.lastCall();
+      assert.ok(call.path.includes('search=platform'));
+    });
+
     it('GETs teams with pagination', async () => {
       await callTool(mcpClient, 'runframe_list_teams', { limit: 50, offset: 10 });
       const call = mock.lastCall();
@@ -434,6 +465,33 @@ describe('team tools', () => {
       const call = mock.lastCall();
       assert.strictEqual(call.method, 'GET');
       assert.strictEqual(call.path, '/api/v1/escalation-policies?severity=SEV1');
+    });
+  });
+});
+
+// ── User tools ───────────────────────────────────────────────────────────
+
+describe('user tools', () => {
+  let mock: MockRunframeClient;
+  let mcpClient: Client;
+
+  beforeEach(async () => {
+    mock = new MockRunframeClient();
+    mock.reset({ items: [], total: 0, has_more: false, next_offset: null });
+    const setup = await setupServer(mock);
+    mcpClient = setup.mcpClient;
+  });
+
+  describe('runframe_find_user', () => {
+    it('GETs active users with search and pagination defaults', async () => {
+      await callTool(mcpClient, 'runframe_find_user', { search: 'niketa' });
+      const call = mock.lastCall();
+      assert.strictEqual(call.method, 'GET');
+      assert.ok(call.path.startsWith('/api/v1/users?'));
+      assert.ok(call.path.includes('search=niketa'));
+      assert.ok(call.path.includes('is_active=true'));
+      assert.ok(call.path.includes('limit=10'));
+      assert.ok(call.path.includes('offset=0'));
     });
   });
 });

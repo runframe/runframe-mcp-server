@@ -5,11 +5,19 @@ export interface RunframeConfig {
   apiUrl: string;
 }
 
+export interface RequestOptions {
+  headers?: Record<string, string>;
+}
+
 export interface ApiErrorResponse {
-  success: false;
   error: {
     message: string;
     code: string;
+    userMessage?: string;
     details?: Record<string, unknown>;
+  };
+  meta?: {
+    requestId?: string;
+    timestamp?: string;
   };
 }

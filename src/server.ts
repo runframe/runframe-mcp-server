@@ -7,6 +7,7 @@ import { registerOncallTools } from './tools/oncall.js';
 import { registerServiceTools } from './tools/services.js';
 import { registerPostmortemTools } from './tools/postmortems.js';
 import { registerTeamTools } from './tools/teams.js';
+import { registerUserTools } from './tools/users.js';
 
 export function createServer(client: RunframeClient): McpServer {
   const server = new McpServer({
@@ -19,6 +20,7 @@ export function createServer(client: RunframeClient): McpServer {
   registerServiceTools(server, client);
   registerPostmortemTools(server, client);
   registerTeamTools(server, client);
+  registerUserTools(server, client);
 
   return server;
 }
