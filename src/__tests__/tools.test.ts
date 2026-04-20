@@ -101,11 +101,11 @@ describe('incident tools', () => {
       assert.ok(call.path.includes('severity=SEV1'));
     });
 
-    it('includes team_id filter', async () => {
-      const teamId = '67555d9b-1087-4265-bfe6-28c214871862';
-      await callTool(mcpClient, 'runframe_list_incidents', { team_id: teamId });
+    it('includes team_name filter', async () => {
+      const teamName = 'Platform';
+      await callTool(mcpClient, 'runframe_list_incidents', { team_name: teamName });
       const call = mock.lastCall();
-      assert.ok(call.path.includes(`team_id=${teamId}`));
+      assert.ok(call.path.includes('team_name=Platform'));
     });
 
     it('includes pagination params', async () => {
@@ -117,14 +117,14 @@ describe('incident tools', () => {
 
     it('includes assignee, resolver, and date range filters', async () => {
       await callTool(mcpClient, 'runframe_list_incidents', {
-        assigned_to: '11111111-1111-4111-8111-111111111111',
-        resolved_by: '22222222-2222-4222-8222-222222222222',
+        assigned_to: 'alex@runframe.io',
+        resolved_by: 'casey@runframe.io',
         created_after: '2026-04-01T00:00:00.000Z',
         resolved_before: '2026-04-30T23:59:59.999Z',
       });
       const call = mock.lastCall();
-      assert.ok(call.path.includes('assigned_to=11111111-1111-4111-8111-111111111111'));
-      assert.ok(call.path.includes('resolved_by=22222222-2222-4222-8222-222222222222'));
+      assert.ok(call.path.includes('assigned_to=alex%40runframe.io'));
+      assert.ok(call.path.includes('resolved_by=casey%40runframe.io'));
       assert.ok(call.path.includes('created_after=2026-04-01T00%3A00%3A00.000Z'));
       assert.ok(call.path.includes('resolved_before=2026-04-30T23%3A59%3A59.999Z'));
     });
@@ -205,12 +205,14 @@ describe('incident tools', () => {
         id: 'INC-2026-001',
         title: 'Updated title',
         severity: 'SEV0',
+        assigned_to: 'alex@runframe.io',
       });
       const call = mock.lastCall();
       assert.strictEqual(call.method, 'PATCH');
       assert.strictEqual(call.path, '/api/v1/incidents/INC-2026-001');
       assert.strictEqual(call.body?.title, 'Updated title');
       assert.strictEqual(call.body?.severity, 'SEV0');
+      assert.strictEqual(call.body?.assigned_to, 'alex@runframe.io');
       assert.strictEqual(call.body?.id, undefined, 'id should not be in body');
     });
 
@@ -282,24 +284,23 @@ describe('incident tools', () => {
   });
 
   describe('runframe_page_someone', () => {
-    it('POSTs to page endpoint with user_id, channel, message', async () => {
+    it('POSTs to page endpoint with email, channel, message', async () => {
       mock.reset({ sent: true });
-      const userId = 'a45f6b87-f222-472f-9f66-9c825bade81e';
       await callTool(mcpClient, 'runframe_page_someone', {
         incident_id: 'INC-2026-001',
-        user_id: userId,
+        email: 'alex@runframe.io',
         channel: 'email',
         message: 'Need eyes on this ASAP',
       });
       const call = mock.lastCall();
       assert.strictEqual(call.method, 'POST');
       assert.strictEqual(call.path, '/api/v1/incidents/INC-2026-001/page');
-      assert.strictEqual(call.body?.user_id, userId);
+      assert.strictEqual(call.body?.email, 'alex@runframe.io');
       assert.strictEqual(call.body?.channel, 'email');
       assert.strictEqual(call.body?.message, 'Need eyes on this ASAP');
     });
 
-    it('defaults channel to slack', async () => {
+    it('supports user_id when provided', async () => {
       mock.reset({ sent: true });
       const userId = 'a45f6b87-f222-472f-9f66-9c825bade81e';
       await callTool(mcpClient, 'runframe_page_someone', {
@@ -307,7 +308,34 @@ describe('incident tools', () => {
         user_id: userId,
       });
       const call = mock.lastCall();
+      assert.strictEqual(call.body?.user_id, userId);
       assert.strictEqual(call.body?.channel, 'slack');
+    });
+
+    it('rejects requests that provide neither email nor user_id', async () => {
+      mock.reset({ sent: true });
+      const result = await callTool(mcpClient, 'runframe_page_someone', {
+        incident_id: 'INC-2026-001',
+      });
+
+      assert.strictEqual(result.isError, true);
+      assert.strictEqual(mock.calls.length, 0);
+      const text = (result.content as Array<{ type: string; text: string }>)[0].text;
+      assert.ok(text.includes('exactly one of email or user_id'), text);
+    });
+
+    it('rejects requests that provide both email and user_id', async () => {
+      mock.reset({ sent: true });
+      const result = await callTool(mcpClient, 'runframe_page_someone', {
+        incident_id: 'INC-2026-001',
+        email: 'alex@runframe.io',
+        user_id: 'a45f6b87-f222-472f-9f66-9c825bade81e',
+      });
+
+      assert.strictEqual(result.isError, true);
+      assert.strictEqual(mock.calls.length, 0);
+      const text = (result.content as Array<{ type: string; text: string }>)[0].text;
+      assert.ok(text.includes('exactly one of email or user_id'), text);
     });
   });
 });
@@ -402,13 +430,13 @@ describe('service tools', () => {
   });
 
   describe('runframe_get_service', () => {
-    it('GETs service by UUID', async () => {
-      mock.reset({ id: 'svc-1', name: 'Payment API' });
-      const svcId = 'd804e776-b29f-474e-a377-fc5e6b31c2de';
-      await callTool(mcpClient, 'runframe_get_service', { id: svcId });
+    it('GETs service by public service_key', async () => {
+      mock.reset({ service_key: 'SER-00001', name: 'Payment API' });
+      const serviceKey = 'SER-00001';
+      await callTool(mcpClient, 'runframe_get_service', { id: serviceKey });
       const call = mock.lastCall();
       assert.strictEqual(call.method, 'GET');
-      assert.strictEqual(call.path, `/api/v1/services/${svcId}`);
+      assert.strictEqual(call.path, `/api/v1/services/${serviceKey}`);
     });
   });
 });
@@ -557,7 +585,7 @@ describe('user tools', () => {
       assert.ok(call.path.includes('offset=0'));
     });
 
-    it('can include inactive users for historical lookups', async () => {
+    it('can include inactive users for historical email lookups', async () => {
       await callTool(mcpClient, 'runframe_find_user', {
         search: 'alex',
         include_inactive: true,

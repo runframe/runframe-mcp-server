@@ -5,7 +5,7 @@ import { toolError } from '../server.js';
 
 export function registerTeamTools(server: McpServer, client: RunframeClient) {
   server.registerTool('runframe_list_teams', {
-    description: 'List all teams in your organization.',
+    description: 'List all teams in your organization so agents can resolve exact team_name values for incident filters.',
     inputSchema: {
       search: z.string().optional().describe('Search by team name'),
       limit: z.number().min(1).max(100).default(20),
