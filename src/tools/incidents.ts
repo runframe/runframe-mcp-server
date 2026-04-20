@@ -19,7 +19,7 @@ const UpdateIncidentBodySchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(10000).optional(),
   severity: SeveritySchema.optional(),
-  assigned_to: z.string().uuid().optional(),
+  assigned_to: z.string().email().optional(),
 }).refine(
   (data) => Object.values(data).some((value) => value !== undefined),
   { message: 'At least one field must be provided for update' }
@@ -33,9 +33,9 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
     inputSchema: {
       status: z.array(z.string()).optional().describe('Filter by status name. Default statuses: new, investigating, fixing, monitoring, resolved, closed (may vary by organization)'),
       severity: z.array(SeveritySchema).optional().describe('Filter by severity: SEV0-SEV4'),
-      assigned_to: z.string().uuid().optional().describe('Filter by current assignee UUID'),
-      resolved_by: z.string().uuid().optional().describe('Filter by resolver UUID'),
-      team_id: z.string().uuid().optional().describe('Filter by team UUID'),
+      assigned_to: z.string().email().optional().describe('Filter by current assignee email'),
+      resolved_by: z.string().email().optional().describe('Filter by resolver email'),
+      team_name: z.string().min(1).optional().describe('Filter by exact team name'),
       created_after: z.string().datetime().optional().describe('Only incidents created at or after this ISO timestamp'),
       created_before: z.string().datetime().optional().describe('Only incidents created at or before this ISO timestamp'),
       resolved_after: z.string().datetime().optional().describe('Only incidents resolved at or after this ISO timestamp'),
@@ -53,7 +53,7 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
       params.severity?.forEach((s) => query.append('severity', s));
       if (params.assigned_to) query.set('assigned_to', params.assigned_to);
       if (params.resolved_by) query.set('resolved_by', params.resolved_by);
-      if (params.team_id) query.set('team_id', params.team_id);
+      if (params.team_name) query.set('team_name', params.team_name);
       if (params.created_after) query.set('created_after', params.created_after);
       if (params.created_before) query.set('created_before', params.created_before);
       if (params.resolved_after) query.set('resolved_after', params.resolved_after);
@@ -107,7 +107,7 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
       title: z.string().min(1).max(200).optional(),
       description: z.string().max(10000).optional(),
       severity: SeveritySchema.optional(),
-      assigned_to: z.string().uuid().optional(),
+      assigned_to: z.string().email().optional().describe('Email of engineer to assign'),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   }, async (params) => {
@@ -185,17 +185,23 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
   // To page via both Slack and email, call this tool twice with different channels
   // (same pattern the UI uses).
   server.registerTool('runframe_page_someone', {
-    description: 'Page a specific person about an incident. Sends a real notification via the chosen channel. Urgency is automatically derived from incident severity. To notify via both Slack and email, call this tool twice with each channel.',
+    description: 'Page a specific person about an incident. Prefer email as the public identifier, or use user_id when needed. Sends a real notification via the chosen channel. Urgency is automatically derived from incident severity. To notify via both Slack and email, call this tool twice with each channel.',
     inputSchema: {
       incident_id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
-      user_id: z.string().uuid().describe('UUID of person to page'),
+      email: z.string().email().optional().describe('Preferred public identifier for the person to page'),
+      user_id: z.string().uuid().optional().describe('Internal UUID of the person to page'),
       channel: z.enum(['slack', 'email']).default('slack').describe('Notification channel (default: slack)'),
       message: z.string().max(500).optional().describe('Custom message to include'),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   }, async (params) => {
     try {
+      if ((params.email && params.user_id) || (!params.email && !params.user_id)) {
+        throw new Error('Provide exactly one of email or user_id');
+      }
+
       const data = await client.post(`/api/v1/incidents/${encodeURIComponent(params.incident_id)}/page`, {
+        email: params.email,
         user_id: params.user_id,
         channel: params.channel,
         message: params.message,

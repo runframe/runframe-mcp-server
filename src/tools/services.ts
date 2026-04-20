@@ -26,7 +26,7 @@ export function registerServiceTools(server: McpServer, client: RunframeClient) 
   server.registerTool('runframe_get_service', {
     description: 'Get details of a specific service.',
     inputSchema: {
-      id: z.string().describe('Service UUID'),
+      id: z.string().describe('Public service key (for example SER-00001)'),
     },
     annotations: { readOnlyHint: true, openWorldHint: true },
   }, async (params) => {

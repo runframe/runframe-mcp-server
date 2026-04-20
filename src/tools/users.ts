@@ -5,7 +5,7 @@ import { toolError } from '../server.js';
 
 export function registerUserTools(server: McpServer, client: RunframeClient) {
   server.registerTool('runframe_find_user', {
-    description: 'Search users by name or email so agents can resolve a person before filtering incidents by assignee or resolver.',
+    description: 'Search users by name or email so agents can resolve an assignee or resolver email before filtering incidents.',
     inputSchema: {
       search: z.string().min(1).describe('Name or email search string'),
       include_inactive: z.boolean().default(false).describe('Include inactive users in search results for historical assignee or resolver lookups'),

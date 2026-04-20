@@ -154,17 +154,20 @@ The server stores nothing. It is a pass-through to the Runframe API.
 This MCP server follows the public Runframe direct API contract.
 
 - Incident create requires `service_ids` containing public service keys like `SER-00001`, not internal UUIDs.
+- `runframe_get_service` now looks up services by public `service_key`, not UUID.
 - Incident IDs in tools may be either UUIDs or incident numbers like `INC-2026-001`.
+- Incident update and list filters now use the latest public identifiers where V1 does: assignee/resolver email and `team_name`.
 - `runframe_create_incident` accepts an optional `idempotency_key`, which is forwarded as the `Idempotency-Key` header for retry-safe creates.
 - `runframe_create_incident` defaults `severity` to `SEV2` when omitted, matching the V1 API.
 - Incident create now mirrors the V1 API limits: `title` must be 1-200 chars, `description` maxes at 10000 chars, and `service_ids` allows at most 50 items.
 - Incident creation depends on valid SLA configuration for the requested severity. If acknowledge or closure deadlines are missing, the API rejects the create.
 - Use `runframe_list_services` to discover valid `service_key` values before creating incidents.
+- `runframe_page_someone` supports the latest V1 public identifier flow: prefer `email`, with `user_id` still available when needed.
 - Postmortem tools now follow the latest V1 contract: use `incident_number` and snake_case nested fields like `users_affected`, `owner_id`, and `time_to_acknowledge`.
-- Use `runframe_find_user` to resolve a person name before filtering incidents by `assigned_to` or `resolved_by`.
+- Use `runframe_find_user` to resolve a person name to an email address before filtering incidents by `assigned_to` or `resolved_by`.
 - Set `include_inactive=true` on `runframe_find_user` when you need to resolve former employees in historical incident queries.
 - Set `is_active=true` or `is_active=false` on `runframe_find_user` when you need an explicit V1 active-state filter.
-- Use `runframe_list_teams` with `search` to resolve a team name before filtering incidents by `team_id`.
+- Use `runframe_list_teams` with `search` to resolve the exact `team_name` before filtering incidents.
 
 ## Docker
 

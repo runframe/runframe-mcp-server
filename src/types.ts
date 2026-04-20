@@ -18,10 +18,12 @@ export interface ApiErrorResponse {
     message: string;
     code: string;
     userMessage?: string;
+    user_message?: string;
     details?: Record<string, unknown>;
   };
   meta?: {
     requestId?: string;
+    request_id?: string;
     timestamp?: string;
   };
 }
