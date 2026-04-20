@@ -67,7 +67,7 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
   server.registerTool('runframe_get_incident', {
     description: 'Get full incident details including timeline, participants, and affected services.',
     inputSchema: {
-      id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
+      id: z.string().describe('Incident number (e.g. INC-2026-001)'),
     },
     annotations: { readOnlyHint: true, openWorldHint: true },
   }, async (params) => {
@@ -103,7 +103,7 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
   server.registerTool('runframe_update_incident', {
     description: 'Update incident fields: title, description, severity, or assignment. For status changes use runframe_change_incident_status instead.',
     inputSchema: {
-      id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
+      id: z.string().describe('Incident number (e.g. INC-2026-001)'),
       title: z.string().min(1).max(200).optional(),
       description: z.string().max(10000).optional(),
       severity: SeveritySchema.optional(),
@@ -123,7 +123,7 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
   server.registerTool('runframe_change_incident_status', {
     description: 'Transition an incident to a new status. Valid statuses: new, investigating, fixing, monitoring, resolved, closed. Validates allowed transitions. For acknowledging (which also auto-assigns and tracks SLA), use runframe_acknowledge_incident instead.',
     inputSchema: {
-      id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
+      id: z.string().describe('Incident number (e.g. INC-2026-001)'),
       status: z.string().describe('Target status name: new, investigating, fixing, monitoring, resolved, closed'),
       comment: z.string().max(500).optional().describe('Reason for the status change'),
     },
@@ -138,11 +138,11 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
 
   // ── acknowledge ─────────────────────────────────────────────────────
   server.registerTool('runframe_acknowledge_incident', {
-    description: 'Acknowledge an incident. This is a distinct action from status change: it auto-assigns the incident to you, stamps the acknowledgement time, and resolves the acknowledge SLA. Idempotent — safe to call multiple times.',
+    description: 'Acknowledge an incident. This is a distinct action from status change: it assigns the incident to you, stamps the acknowledgement time, and updates acknowledge-SLA state. If the incident is already acknowledged, the API returns a conflict.',
     inputSchema: {
-      id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
+      id: z.string().describe('Incident number (e.g. INC-2026-001)'),
     },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   }, async (params) => {
     try {
       const data = await client.post(`/api/v1/incidents/${encodeURIComponent(params.id)}/acknowledge`, {});
@@ -154,8 +154,8 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
   server.registerTool('runframe_add_incident_event', {
     description: 'Add a timeline entry to an incident (log what happened).',
     inputSchema: {
-      id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
-      message: z.string().describe('What happened'),
+      id: z.string().describe('Incident number (e.g. INC-2026-001)'),
+      comment: z.string().describe('What happened'),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
   }, async (params) => {
@@ -170,7 +170,7 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
   server.registerTool('runframe_escalate_incident', {
     description: 'Escalate an incident to the next level in the escalation policy. Sends real notifications.',
     inputSchema: {
-      id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
+      id: z.string().describe('Incident number (e.g. INC-2026-001)'),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   }, async (params) => {
@@ -182,28 +182,20 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
 
   // ── page someone ────────────────────────────────────────────────────
   // Urgency is derived from incident severity in the backend — not passed by the caller.
-  // To page via both Slack and email, call this tool twice with different channels
-  // (same pattern the UI uses).
   server.registerTool('runframe_page_someone', {
-    description: 'Page a specific person about an incident. Prefer email as the public identifier, or use user_id when needed. Sends a real notification via the chosen channel. Urgency is automatically derived from incident severity. To notify via both Slack and email, call this tool twice with each channel.',
+    description: 'Page a specific person about an incident by email. Sends real notifications through one or more requested channels. Urgency is automatically derived from incident severity.',
     inputSchema: {
-      incident_id: z.string().describe('Incident number (e.g. INC-2026-001) or UUID'),
-      email: z.string().email().optional().describe('Preferred public identifier for the person to page'),
-      user_id: z.string().uuid().optional().describe('Internal UUID of the person to page'),
-      channel: z.enum(['slack', 'email']).default('slack').describe('Notification channel (default: slack)'),
+      incident_id: z.string().describe('Incident number (e.g. INC-2026-001)'),
+      email: z.string().email().describe('Email address of the person to page'),
+      channels: z.array(z.enum(['slack', 'email'])).min(1).describe('One or more delivery channels'),
       message: z.string().max(500).optional().describe('Custom message to include'),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   }, async (params) => {
     try {
-      if ((params.email && params.user_id) || (!params.email && !params.user_id)) {
-        throw new Error('Provide exactly one of email or user_id');
-      }
-
       const data = await client.post(`/api/v1/incidents/${encodeURIComponent(params.incident_id)}/page`, {
         email: params.email,
-        user_id: params.user_id,
-        channel: params.channel,
+        channels: params.channels,
         message: params.message,
       });
       return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
