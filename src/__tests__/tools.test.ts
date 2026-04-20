@@ -258,16 +258,16 @@ describe('incident tools', () => {
   });
 
   describe('runframe_add_incident_event', () => {
-    it('POSTs message to events endpoint, excludes id from body', async () => {
+    it('POSTs comment to events endpoint, excludes id from body', async () => {
       mock.reset({ event_id: 'evt-1' });
       await callTool(mcpClient, 'runframe_add_incident_event', {
         id: 'INC-2026-001',
-        message: 'Root cause identified: memory leak in worker pool',
+        comment: 'Root cause identified: memory leak in worker pool',
       });
       const call = mock.lastCall();
       assert.strictEqual(call.method, 'POST');
       assert.strictEqual(call.path, '/api/v1/incidents/INC-2026-001/events');
-      assert.strictEqual(call.body?.message, 'Root cause identified: memory leak in worker pool');
+      assert.strictEqual(call.body?.comment, 'Root cause identified: memory leak in worker pool');
       assert.strictEqual(call.body?.id, undefined);
     });
   });
@@ -284,58 +284,31 @@ describe('incident tools', () => {
   });
 
   describe('runframe_page_someone', () => {
-    it('POSTs to page endpoint with email, channel, message', async () => {
+    it('POSTs to page endpoint with email, channels, and message', async () => {
       mock.reset({ sent: true });
       await callTool(mcpClient, 'runframe_page_someone', {
         incident_id: 'INC-2026-001',
         email: 'alex@runframe.io',
-        channel: 'email',
+        channels: ['email'],
         message: 'Need eyes on this ASAP',
       });
       const call = mock.lastCall();
       assert.strictEqual(call.method, 'POST');
       assert.strictEqual(call.path, '/api/v1/incidents/INC-2026-001/page');
       assert.strictEqual(call.body?.email, 'alex@runframe.io');
-      assert.strictEqual(call.body?.channel, 'email');
+      assert.deepStrictEqual(call.body?.channels, ['email']);
       assert.strictEqual(call.body?.message, 'Need eyes on this ASAP');
     });
 
-    it('supports user_id when provided', async () => {
+    it('supports multiple delivery channels', async () => {
       mock.reset({ sent: true });
-      const userId = 'a45f6b87-f222-472f-9f66-9c825bade81e';
       await callTool(mcpClient, 'runframe_page_someone', {
         incident_id: 'INC-2026-001',
-        user_id: userId,
+        email: 'alex@runframe.io',
+        channels: ['slack', 'email'],
       });
       const call = mock.lastCall();
-      assert.strictEqual(call.body?.user_id, userId);
-      assert.strictEqual(call.body?.channel, 'slack');
-    });
-
-    it('rejects requests that provide neither email nor user_id', async () => {
-      mock.reset({ sent: true });
-      const result = await callTool(mcpClient, 'runframe_page_someone', {
-        incident_id: 'INC-2026-001',
-      });
-
-      assert.strictEqual(result.isError, true);
-      assert.strictEqual(mock.calls.length, 0);
-      const text = (result.content as Array<{ type: string; text: string }>)[0].text;
-      assert.ok(text.includes('exactly one of email or user_id'), text);
-    });
-
-    it('rejects requests that provide both email and user_id', async () => {
-      mock.reset({ sent: true });
-      const result = await callTool(mcpClient, 'runframe_page_someone', {
-        incident_id: 'INC-2026-001',
-        email: 'alex@runframe.io',
-        user_id: 'a45f6b87-f222-472f-9f66-9c825bade81e',
-      });
-
-      assert.strictEqual(result.isError, true);
-      assert.strictEqual(mock.calls.length, 0);
-      const text = (result.content as Array<{ type: string; text: string }>)[0].text;
-      assert.ok(text.includes('exactly one of email or user_id'), text);
+      assert.deepStrictEqual(call.body?.channels, ['slack', 'email']);
     });
   });
 });
