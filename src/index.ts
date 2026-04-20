@@ -53,10 +53,10 @@ async function main() {
 
   // Verify key on startup
   try {
-    const verify = await client.get<{ valid: boolean; scopes: string[]; organizationName: string }>(
+    const verify = await client.get<{ valid: boolean; scopes: string[]; organization_name: string }>(
       '/api/v1/auth/verify'
     );
-    console.error(`[runframe-mcp] Authenticated: ${verify.organizationName} (scopes: ${verify.scopes.join(', ')})`);
+    console.error(`[runframe-mcp] Authenticated: ${verify.organization_name} (scopes: ${verify.scopes.join(', ')})`);
   } catch (error) {
     if (error instanceof Error && 'status' in error) {
       const status = (error as { status: number }).status;
