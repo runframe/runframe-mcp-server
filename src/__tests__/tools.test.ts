@@ -361,11 +361,11 @@ describe('oncall tools', () => {
       assert.ok(call.path.startsWith('/api/v1/on-call/current'));
     });
 
-    it('includes team_id when provided', async () => {
-      const teamId = '67555d9b-1087-4265-bfe6-28c214871862';
-      await callTool(mcpClient, 'runframe_get_current_oncall', { team_id: teamId });
+    it('includes team_name when provided', async () => {
+      const teamName = 'Platform';
+      await callTool(mcpClient, 'runframe_get_current_oncall', { team_name: teamName });
       const call = mock.lastCall();
-      assert.ok(call.path.includes(`team_id=${teamId}`));
+      assert.ok(call.path.includes(`team_name=${encodeURIComponent(teamName)}`));
     });
 
     it('returns the latest snake_case on-call payload unchanged', async () => {
@@ -378,16 +378,15 @@ describe('oncall tools', () => {
           coverage_percentage: 100,
         },
         services: [{
-          service_id: 'service-1',
+          service_key: 'SER-00001',
           service_name: 'Payments API',
           service_description: null,
-          team_id: 'team-1',
           team_name: 'Platform',
           team_description: null,
           on_call_engineers: [],
           has_coverage: true,
           primary_on_call: null,
-          schedules: [],
+          schedule_names: [],
         }],
       });
 
@@ -395,7 +394,7 @@ describe('oncall tools', () => {
       const text = (result.content as Array<{ type: string; text: string }>)[0].text;
       const parsed = JSON.parse(text);
       assert.strictEqual(parsed.summary.total_services, 1);
-      assert.strictEqual(parsed.services[0].service_id, 'service-1');
+      assert.strictEqual(parsed.services[0].service_key, 'SER-00001');
       assert.strictEqual(parsed.services[0].has_coverage, true);
     });
   });
@@ -482,7 +481,7 @@ describe('postmortem tools', () => {
           { timestamp: '2026-03-14T15:20:00Z', description: 'Resolved' },
         ],
         action_items: [
-          { text: 'Add connection pool monitoring', owner_id: 'user-1', due_date: '2026-04-30', status: 'pending' },
+          { text: 'Add connection pool monitoring', owner_email: 'owner@example.com', due_date: '2026-04-30', status: 'pending' },
         ],
         contributing_factors: 'No alerting on pool size',
         detection_path: 'Synthetic monitor',
@@ -503,6 +502,7 @@ describe('postmortem tools', () => {
       assert.strictEqual(call.body?.root_cause, 'Connection pool exhausted');
       assert.ok(Array.isArray(call.body?.timeline));
       assert.ok(Array.isArray(call.body?.action_items));
+      assert.strictEqual(call.body?.action_items?.[0]?.owner_email, 'owner@example.com');
     });
 
     it('works with incident_number only (minimum)', async () => {

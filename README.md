@@ -163,7 +163,7 @@ This MCP server follows the public Runframe direct API contract.
 - Incident creation depends on valid SLA configuration for the requested severity. If acknowledge or closure deadlines are missing, the API rejects the create.
 - Use `runframe_list_services` to discover valid `service_key` values before creating incidents.
 - `runframe_page_someone` supports the latest V1 public identifier flow: prefer `email`, with `user_id` still available when needed.
-- Postmortem tools now follow the latest V1 contract: use `incident_number` and snake_case nested fields like `users_affected`, `owner_id`, and `time_to_acknowledge`.
+- Postmortem tools now follow the latest V1 contract: use `incident_number` and snake_case nested fields like `users_affected`, `owner_email`, and `time_to_acknowledge`.
 - Use `runframe_find_user` to resolve a person name to an email address before filtering incidents by `assigned_to` or `resolved_by`.
 - Set `include_inactive=true` on `runframe_find_user` when you need to resolve former employees in historical incident queries.
 - Set `is_active=true` or `is_active=false` on `runframe_find_user` when you need an explicit V1 active-state filter.

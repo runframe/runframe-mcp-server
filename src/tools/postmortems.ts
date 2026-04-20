@@ -39,7 +39,7 @@ export function registerPostmortemTools(server: McpServer, client: RunframeClien
       })).optional().describe('Timeline of events'),
       action_items: z.array(z.object({
         text: z.string(),
-        owner_id: z.string().optional(),
+        owner_email: z.string().email().optional(),
         due_date: z.string().optional(),
         status: z.enum(['pending', 'in_progress', 'completed']).default('pending'),
       })).optional().describe('Follow-up action items'),

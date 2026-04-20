@@ -40,11 +40,11 @@ export async function runSetup(apiUrl: string): Promise<void> {
         // Validate against the API
         const client = new RunframeClient({ apiKey: key, apiUrl });
         try {
-          const result = await client.get<{ valid: boolean; scopes: string[]; organizationName: string }>(
+          const result = await client.get<{ valid: boolean; scopes: string[]; organization_name: string }>(
             '/api/v1/auth/verify'
           );
           console.error('');
-          console.error(`  ✓ Connected to ${result.organizationName} (scopes: ${result.scopes.join(', ')})`);
+          console.error(`  ✓ Connected to ${result.organization_name} (scopes: ${result.scopes.join(', ')})`);
           validKey = key;
         } catch {
           console.error('  ✗ Could not verify key. Showing config with your key — double-check it at https://runframe.io/settings');
