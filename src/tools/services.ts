@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RunframeClient } from '../client.js';
 import { toolError } from '../server.js';
+import { ServiceKeySchema } from '../service-keys.js';
 
 export function registerServiceTools(server: McpServer, client: RunframeClient) {
   server.registerTool('runframe_list_services', {
@@ -26,12 +27,13 @@ export function registerServiceTools(server: McpServer, client: RunframeClient) 
   server.registerTool('runframe_get_service', {
     description: 'Get details of a specific service.',
     inputSchema: {
-      id: z.string().describe('Public service key (for example SER-00001)'),
+      id: ServiceKeySchema.describe('Public service key (for example svc_K7M4Q9TZ2H)'),
     },
     annotations: { readOnlyHint: true, openWorldHint: true },
   }, async (params) => {
     try {
-      const data = await client.get(`/api/v1/services/${encodeURIComponent(params.id)}`);
+      const id = ServiceKeySchema.parse(params.id);
+      const data = await client.get(`/api/v1/services/${encodeURIComponent(id)}`);
       return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
     } catch (error) { return toolError(error, 'runframe_get_service'); }
   });

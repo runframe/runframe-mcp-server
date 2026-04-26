@@ -156,7 +156,7 @@ describe('incident tools', () => {
   describe('runframe_create_incident', () => {
     it('POSTs to correct endpoint with full body', async () => {
       mock.reset({ id: 'new-id', incident_number: 'INC-2026-033' });
-      const serviceKey = 'SER-00001';
+      const serviceKey = 'svc_K7M4Q9TZ2H';
       await callTool(mcpClient, 'runframe_create_incident', {
         title: 'Redis Cache Storm',
         description: 'Cache eviction on prod-03',
@@ -176,7 +176,7 @@ describe('incident tools', () => {
       mock.reset({ id: 'new-id' });
       await callTool(mcpClient, 'runframe_create_incident', {
         title: 'Redis Cache Storm',
-        service_ids: ['SER-00001'],
+        service_ids: ['svc_K7M4Q9TZ2H'],
         idempotency_key: 'incident-create-001',
       });
       const call = mock.lastCall();
@@ -184,11 +184,34 @@ describe('incident tools', () => {
       assert.strictEqual(call.body?.idempotency_key, undefined);
     });
 
+    it('normalizes service keys before sending request', async () => {
+      mock.reset({ id: 'new-id' });
+      await callTool(mcpClient, 'runframe_create_incident', {
+        title: 'Redis Cache Storm',
+        service_ids: ['  SVC_k7m4q9tz2h  '],
+      });
+      const call = mock.lastCall();
+      assert.deepStrictEqual(call.body?.service_ids, ['svc_K7M4Q9TZ2H']);
+    });
+
+    it('rejects legacy SER service keys before sending request', async () => {
+      mock.reset({ id: 'new-id' });
+      const result = await callTool(mcpClient, 'runframe_create_incident', {
+        title: 'Redis Cache Storm',
+        service_ids: ['SER-00001'],
+      });
+
+      assert.strictEqual(result.isError, true);
+      assert.strictEqual(mock.calls.length, 0);
+      const text = (result.content as Array<{ type: string; text: string }>)[0].text;
+      assert.ok(text.includes('svc_K7M4Q9TZ2H'), text);
+    });
+
     it('rejects more than 50 service_ids before sending request', async () => {
       mock.reset({ id: 'new-id' });
       const result = await callTool(mcpClient, 'runframe_create_incident', {
         title: 'Redis Cache Storm',
-        service_ids: Array.from({ length: 51 }, (_, i) => `SER-${String(i + 1).padStart(5, '0')}`),
+        service_ids: Array.from({ length: 51 }, () => 'svc_J7Q4CSFTRV'),
       });
 
       assert.strictEqual(result.isError, true);
@@ -351,7 +374,7 @@ describe('oncall tools', () => {
           coverage_percentage: 100,
         },
         services: [{
-          service_key: 'SER-00001',
+          service_key: 'svc_K7M4Q9TZ2H',
           service_name: 'Payments API',
           service_description: null,
           team_name: 'Platform',
@@ -367,7 +390,7 @@ describe('oncall tools', () => {
       const text = (result.content as Array<{ type: string; text: string }>)[0].text;
       const parsed = JSON.parse(text);
       assert.strictEqual(parsed.summary.total_services, 1);
-      assert.strictEqual(parsed.services[0].service_key, 'SER-00001');
+      assert.strictEqual(parsed.services[0].service_key, 'svc_K7M4Q9TZ2H');
       assert.strictEqual(parsed.services[0].has_coverage, true);
     });
   });
@@ -403,12 +426,29 @@ describe('service tools', () => {
 
   describe('runframe_get_service', () => {
     it('GETs service by public service_key', async () => {
-      mock.reset({ service_key: 'SER-00001', name: 'Payment API' });
-      const serviceKey = 'SER-00001';
+      mock.reset({ service_key: 'svc_K7M4Q9TZ2H', name: 'Payment API' });
+      const serviceKey = 'svc_K7M4Q9TZ2H';
       await callTool(mcpClient, 'runframe_get_service', { id: serviceKey });
       const call = mock.lastCall();
       assert.strictEqual(call.method, 'GET');
       assert.strictEqual(call.path, `/api/v1/services/${serviceKey}`);
+    });
+
+    it('normalizes service key casing before GET', async () => {
+      mock.reset({ service_key: 'svc_K7M4Q9TZ2H', name: 'Payment API' });
+      await callTool(mcpClient, 'runframe_get_service', { id: 'SVC_k7m4q9tz2h' });
+      const call = mock.lastCall();
+      assert.strictEqual(call.path, '/api/v1/services/svc_K7M4Q9TZ2H');
+    });
+
+    it('rejects legacy SER service keys before GET', async () => {
+      mock.reset({});
+      const result = await callTool(mcpClient, 'runframe_get_service', { id: 'SER-00001' });
+
+      assert.strictEqual(result.isError, true);
+      assert.strictEqual(mock.calls.length, 0);
+      const text = (result.content as Array<{ type: string; text: string }>)[0].text;
+      assert.ok(text.includes('svc_K7M4Q9TZ2H'), text);
     });
   });
 });

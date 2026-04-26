@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { RunframeClient } from '../client.js';
 import { toolError } from '../server.js';
+import { ServiceKeySchema } from '../service-keys.js';
 
 const SeveritySchema = z.enum(['SEV0', 'SEV1', 'SEV2', 'SEV3', 'SEV4']);
 
@@ -12,7 +13,7 @@ const CreateIncidentBodySchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(10000).optional(),
   severity: SeveritySchema.optional(),
-  service_ids: z.array(z.string().min(1)).min(1).max(50),
+  service_ids: z.array(ServiceKeySchema).min(1).max(50),
 }).strict();
 
 const UpdateIncidentBodySchema = z.object({
@@ -84,7 +85,7 @@ export function registerIncidentTools(server: McpServer, client: RunframeClient)
       title: z.string().min(1).max(200).describe('Incident title (required, 1-200 chars)'),
       description: z.string().max(10000).optional().describe('Detailed description (max 10000 chars)'),
       severity: SeveritySchema.optional().describe('SEV0-SEV4, defaults to SEV2'),
-      service_ids: z.array(z.string().min(1)).min(1).max(50).describe('Affected public service keys (for example SER-00001). Discover keys via runframe_list_services. Max 50 items.'),
+      service_ids: z.array(ServiceKeySchema).min(1).max(50).describe('Affected public service keys (for example svc_K7M4Q9TZ2H). Discover keys via runframe_list_services. Max 50 items.'),
       idempotency_key: z.string().optional().describe('Optional retry-safe idempotency key for create requests. Same key + same payload replays the original response.'),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },

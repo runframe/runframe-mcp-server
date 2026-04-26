@@ -55,7 +55,7 @@ describe('RunframeClient', () => {
 
     try {
       const client = new RunframeClient({ apiKey: 'rf_test', apiUrl: 'https://example.com' });
-      await client.post('/api/v1/incidents', { title: 'Test', service_ids: ['SER-00001'] }, {
+      await client.post('/api/v1/incidents', { title: 'Test', service_ids: ['svc_K7M4Q9TZ2H'] }, {
         headers: { 'Idempotency-Key': 'incident-create-001' },
       });
       assert.strictEqual(seenHeaders?.get('Idempotency-Key'), 'incident-create-001');
