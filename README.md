@@ -153,7 +153,7 @@ The server stores nothing. It is a pass-through to the Runframe API.
 
 This MCP server follows the public Runframe direct API contract.
 
-- Incident create requires `service_ids` containing public service keys like `SER-00001`, not internal UUIDs.
+- Incident create requires `service_ids` containing public service keys like `svc_K7M4Q9TZ2H`, not internal UUIDs.
 - `runframe_get_service` now looks up services by public `service_key`, not UUID.
 - Incident tools now follow the latest V1 contract: use incident numbers like `INC-2026-001` in path parameters.
 - Incident update and list filters now use the latest public identifiers where V1 does: assignee/resolver email and `team_name`.
